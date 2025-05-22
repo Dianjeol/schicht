@@ -523,7 +523,7 @@ def main():
             prefs_df = pd.DataFrame(prefs_list)
             st.dataframe(prefs_df, use_container_width=True, hide_index=True)
             
-            st.write(f"**Gesamt**: {len(existing_prefs)} von 20 Mitarbeitenden")
+            st.write(f"**Gesamt**: {len(existing_prefs)} Mitarbeitende")
         
         st.divider()
         
@@ -753,8 +753,7 @@ def main():
         
         st.write(f"**Anzahl eingetragener Mitarbeitender**: {len(preferences)}")
         
-        if len(preferences) < 10:
-            st.warning("⚠️ Weniger als 10 Mitarbeitende eingegeben. Für optimale Fairness sollten alle 20 Mitarbeitenden ihre Personen eingeben.")
+
         
         # Übersicht der Personen (alphabetisch sortiert)
         st.subheader("Übersicht der Personen (alphabetisch sortiert)")

@@ -4,7 +4,7 @@
 > 🎭 **Live erleben:** [schicht.streamlit.app](https://schicht.streamlit.app/) 🚀  
 > Ein zauberhafter Schichtplaner für harmonische Teams! 🤗
 
-Dieser liebevoll gestaltete Schichtplaner bringt Fairness und Freude in Ihren Arbeitsalltag. 20 Mitarbeitende können ihre Herzenswünsche für Wochentage eingeben, und unser magischer Algorithmus erstellt einen perfekt ausbalancierten Jahresschichtplan! ✨💫
+Dieser liebevoll gestaltete Schichtplaner bringt Fairness und Freude in Ihren Arbeitsalltag. Mitarbeitende können ihre Herzenswünsche für Wochentage eingeben, und unser magischer Algorithmus erstellt einen perfekt ausbalancierten Jahresschichtplan! ✨💫
 
 ## 🎨💖 Magische Features
 
