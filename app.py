@@ -488,18 +488,18 @@ def main():
     st.sidebar.title("Navigation")
     mode = st.sidebar.radio(
         "Wählen Sie eine Option:",
-        ["Präferenzen eingeben", "Schichtplan generieren", "Plan anzeigen"]
+        ["Personen eingeben", "Schichtplan generieren", "Plan anzeigen"]
     )
     
-    if mode == "Präferenzen eingeben":
-        st.header("👥 Mitarbeiterpräferenzen eingeben")
+    if mode == "Personen eingeben":
+        st.header("👥 Mitarbeiterpersonen eingeben")
         
-        # Lade vorhandene Präferenzen
+        # Lade vorhandene Personen
         existing_prefs = load_preferences()
         
-        # Zeige bereits eingegeben Präferenzen mit Bearbeitungsoptionen
+        # Zeige bereits eingegebene Personen mit Bearbeitungsoptionen
         if existing_prefs:
-            st.subheader("Bereits eingegebene Präferenzen (alphabetisch sortiert):")
+            st.subheader("Bereits eingegebene Personen (alphabetisch sortiert):")
             
             # Erstelle DataFrame für bessere Darstellung
             prefs_list = []
@@ -526,12 +526,12 @@ def main():
             st.write(f"**Gesamt**: {len(existing_prefs)} von 20 Mitarbeitenden")
             
             # Bearbeitungs- und Löschoptionen
-            st.subheader("🔧 Präferenzen bearbeiten/löschen")
+            st.subheader("🔧 Personen bearbeiten/löschen")
             
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**Präferenz bearbeiten:**")
+                st.markdown("**Person bearbeiten:**")
                 edit_name = st.selectbox(
                     "Person auswählen:",
                     ["Keine Auswahl"] + list(existing_prefs.keys()),
@@ -546,7 +546,7 @@ def main():
                         st.rerun()
             
             with col2:
-                st.markdown("**Präferenz löschen:**")
+                st.markdown("**Person löschen:**")
                 delete_name = st.selectbox(
                     "Person auswählen:",
                     ["Keine Auswahl"] + list(existing_prefs.keys()),
@@ -557,7 +557,7 @@ def main():
                     if st.button(f"🗑️ {delete_name} löschen", type="secondary"):
                         if st.session_state.get("confirm_delete", False):
                             delete_preference(delete_name)
-                            st.success(f"✅ Präferenz für **{delete_name}** wurde gelöscht.")
+                            st.success(f"✅ Person **{delete_name}** wurde gelöscht.")
                             if "confirm_delete" in st.session_state:
                                 del st.session_state["confirm_delete"]
                             st.rerun()
@@ -569,7 +569,7 @@ def main():
         
         # Bearbeitungsmodus
         if st.session_state.get("edit_mode", False):
-            st.subheader(f"✏️ Präferenz bearbeiten: {st.session_state.edit_name}")
+            st.subheader(f"✏️ Person bearbeiten: {st.session_state.edit_name}")
             st.info("💡 Ändern Sie die gewünschten Werte und speichern Sie.")
             
             edit_name = st.text_input(
@@ -613,15 +613,15 @@ def main():
             
             with col_save:
                 if st.button("💾 Änderungen speichern", type="primary"):
-                    # Lösche alte Präferenz wenn Name geändert wurde
+                    # Lösche alte Person wenn Name geändert wurde
                     if edit_name != st.session_state.edit_name:
                         delete_preference(st.session_state.edit_name)
                     
-                    # Speichere neue/geänderte Präferenz
+                    # Speichere neue/geänderte Person
                     new_prefs = [edit_first, edit_second, edit_third]
                     save_preferences(edit_name, new_prefs)
                     
-                    st.success(f"✅ Präferenz für **{edit_name}** wurde aktualisiert!")
+                    st.success(f"✅ Person **{edit_name}** wurde aktualisiert!")
                     
                     # Reset edit mode
                     del st.session_state.edit_mode
@@ -640,7 +640,7 @@ def main():
             st.divider()
         
         # Eingabeformular ohne Form (um Session State Problem zu vermeiden)
-        st.subheader("Neue Präferenz hinzufügen")
+        st.subheader("Person bearbeiten/löschen")
         
         # Initialisiere Session State für Formular-Reset
         if 'form_reset_trigger' not in st.session_state:
@@ -702,7 +702,7 @@ def main():
             )
         
         # Submit Button außerhalb des Forms
-        submitted = st.button("Präferenz speichern", type="primary", use_container_width=True)
+        submitted = st.button("Person speichern", type="primary", use_container_width=True)
         
         if submitted:
             # Validierung der Eingaben
@@ -733,7 +733,7 @@ def main():
                     # Alles korrekt - speichern
                     preferred_days = [first_choice, second_choice, third_choice]
                     save_preferences(name.strip(), preferred_days)
-                    st.success(f"✅ Präferenz für **{name.strip()}** erfolgreich gespeichert! 🎉")
+                    st.success(f"✅ Person **{name.strip()}** erfolgreich gespeichert! 🎉")
                     st.success(f"🎯 **Ihre Prioritäten**: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice}")
                     st.balloons()  # Kleine Feier! 🎈
                     # Reset das Formular durch Erhöhung des Triggers
@@ -746,16 +746,16 @@ def main():
         preferences = load_preferences()
         
         if len(preferences) == 0:
-            st.warning("Noch keine Präferenzen eingegeben. Bitte gehen Sie zu 'Präferenzen eingeben'.")
+            st.warning("Noch keine Personen eingegeben. Bitte gehen Sie zu 'Personen eingeben'.")
             return
         
         st.write(f"**Anzahl eingetragener Mitarbeitender**: {len(preferences)}")
         
         if len(preferences) < 10:
-            st.warning("⚠️ Weniger als 10 Mitarbeitende eingegeben. Für optimale Fairness sollten alle 20 Mitarbeitenden ihre Präferenzen eingeben.")
+            st.warning("⚠️ Weniger als 10 Mitarbeitende eingegeben. Für optimale Fairness sollten alle 20 Mitarbeitenden ihre Personen eingeben.")
         
-        # Übersicht der Präferenzen (alphabetisch sortiert)
-        st.subheader("Übersicht der Präferenzen (alphabetisch sortiert)")
+        # Übersicht der Personen (alphabetisch sortiert)
+        st.subheader("Übersicht der Personen (alphabetisch sortiert)")
         prefs_df = pd.DataFrame([
             {
                 "Name": name, 
