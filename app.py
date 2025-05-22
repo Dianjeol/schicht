@@ -911,7 +911,7 @@ def main():
         st.divider()
         
         # Generierung starten
-        if st.button("🎯 Fairen Schichtplan generieren", type="primary"):
+        if st.button("🎯 Schichtplan generieren", type="primary"):
             with st.spinner("Generiere optimalen Schichtplan..."):
                 schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(preferences)
                 save_schedule(schedule)
