@@ -1080,9 +1080,7 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666; padding: 20px;'>
-            <small>📅 Schichtplaner 2025 | Professionelle Schichtplanung<br>
-            <a href='https://github.com/Dianjeol/schicht' target='_blank' style='text-decoration: none; color: #666;'>GitHub Repository</a> | 
-            <a href='https://schicht.streamlit.app/' target='_blank' style='text-decoration: none; color: #666;'>Live Demo</a></small>
+            <small>📅 Schichtplaner 2025 | Professionelle Schichtplanung</small>
         </div>
         """, 
         unsafe_allow_html=True
