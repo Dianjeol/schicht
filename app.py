@@ -264,16 +264,12 @@ def main():
             submitted = st.form_submit_button("Präferenz speichern")
             
             if submitted:
-                # Debug-Info (wird später entfernt)
-                st.write(f"Debug - 1. Wahl: '{first_choice}', 2. Wahl: '{second_choice}', 3. Wahl: '{third_choice}'")
-                
                 if not name.strip():
                     st.error("Bitte geben Sie einen Namen ein.")
                 elif (first_choice == "Bitte wählen..." or 
                       second_choice == "Bitte wählen..." or 
                       third_choice == "Bitte wählen..."):
                     st.error("Bitte wählen Sie alle 3 Prioritäten aus.")
-                    st.write(f"Fehler-Details: 1='{first_choice}', 2='{second_choice}', 3='{third_choice}'")
                 else:
                     # Speichere in Prioritätsreihenfolge
                     preferred_days = [first_choice, second_choice, third_choice]
@@ -378,8 +374,8 @@ def main():
                 ["Alle"] + sorted(set(schedule.values()))
             )
         
-        # Daten für Anzeige vorbereiten
-        schedule_data = []
+        # Daten für Kalenderwochen-Ansicht vorbereiten
+        filtered_schedule = {}
         for date_str, employee in schedule.items():
             date_obj = datetime.strptime(date_str, '%Y-%m-%d')
             
@@ -392,39 +388,108 @@ def main():
             # Mitarbeiterfilter anwenden
             if employee_filter != "Alle" and employee != employee_filter:
                 continue
-            
-            schedule_data.append({
-                "Datum": date_obj.strftime('%d.%m.%Y'),
-                "Wochentag": date_obj.strftime('%A'),
-                "Mitarbeiter": employee
-            })
+                
+            filtered_schedule[date_str] = employee
         
-        if schedule_data:
-            # Sortiere nach Datum
-            schedule_data.sort(key=lambda x: datetime.strptime(x["Datum"], '%d.%m.%Y'))
+        if filtered_schedule:
+            # Erstelle Kalenderwochen-Tabelle
+            weekly_data = {}
             
-            # Deutsche Wochentage
-            german_weekdays = {
-                'Monday': 'Montag', 'Tuesday': 'Dienstag', 'Wednesday': 'Mittwoch',
-                'Thursday': 'Donnerstag', 'Friday': 'Freitag', 'Saturday': 'Samstag', 'Sunday': 'Sonntag'
-            }
+            for date_str, employee in filtered_schedule.items():
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                
+                # Berechne Kalenderwoche
+                year, week, weekday = date_obj.isocalendar()
+                kw_key = f"KW {week:02d}"
+                
+                if kw_key not in weekly_data:
+                    weekly_data[kw_key] = {
+                        "KW": kw_key,
+                        "Montag": "",
+                        "Dienstag": "",
+                        "Mittwoch": "",
+                        "Donnerstag": "",
+                        "Freitag": ""
+                    }
+                
+                # Weekday: 1=Montag, 2=Dienstag, ..., 5=Freitag
+                weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
+                
+                if weekday in weekday_names:
+                    day_name = weekday_names[weekday]
+                    weekly_data[kw_key][day_name] = employee
             
-            for item in schedule_data:
-                item["Wochentag"] = german_weekdays.get(item["Wochentag"], item["Wochentag"])
+            # Sortiere nach Kalenderwoche
+            sorted_weeks = sorted(weekly_data.keys(), key=lambda x: int(x.split()[1]))
+            sorted_data = [weekly_data[kw] for kw in sorted_weeks]
             
-            df = pd.DataFrame(schedule_data)
+            # Erstelle DataFrame
+            df = pd.DataFrame(sorted_data)
             
-            st.subheader(f"📅 Schichtplan ({len(schedule_data)} Einträge)")
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.subheader(f"📅 Schichtplan Kalenderwochen-Ansicht ({len(filtered_schedule)} Schichten)")
             
-            # Download-Option
-            csv = df.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📄 Plan als CSV herunterladen",
-                data=csv,
-                file_name=f"schichtplan_2025.csv",
-                mime="text/csv"
+            # Zeige die Tabelle mit verbessertem Styling
+            st.dataframe(
+                df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "KW": st.column_config.TextColumn("📅 KW", width="small"),
+                    "Montag": st.column_config.TextColumn("🔵 Montag", width="medium"),
+                    "Dienstag": st.column_config.TextColumn("🟢 Dienstag", width="medium"),
+                    "Mittwoch": st.column_config.TextColumn("🟡 Mittwoch", width="medium"),
+                    "Donnerstag": st.column_config.TextColumn("🟠 Donnerstag", width="medium"),
+                    "Freitag": st.column_config.TextColumn("🔴 Freitag", width="medium")
+                }
             )
+            
+            # Zusätzliche Listen-Ansicht als Toggle
+            if st.toggle("📋 Zusätzliche Listen-Ansicht anzeigen"):
+                list_data = []
+                for date_str, employee in sorted(filtered_schedule.items()):
+                    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                    list_data.append({
+                        "Datum": date_obj.strftime('%d.%m.%Y'),
+                        "Wochentag": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()],
+                        "Mitarbeiter": employee
+                    })
+                
+                list_df = pd.DataFrame(list_data)
+                st.dataframe(list_df, use_container_width=True, hide_index=True)
+            
+            # Download-Optionen
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Kalenderwochen-CSV
+                weekly_csv = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📄 Kalenderwochen-Plan als CSV",
+                    data=weekly_csv,
+                    file_name=f"schichtplan_kalenderwochen_2025.csv",
+                    mime="text/csv"
+                )
+            
+            with col2:
+                # Listen-CSV (wie vorher)
+                if filtered_schedule:
+                    list_data = []
+                    for date_str, employee in sorted(filtered_schedule.items()):
+                        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                        list_data.append({
+                            "Datum": date_obj.strftime('%d.%m.%Y'),
+                            "Wochentag": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()],
+                            "Mitarbeiter": employee
+                        })
+                    
+                    list_df = pd.DataFrame(list_data)
+                    list_csv = list_df.to_csv(index=False, encoding='utf-8-sig')
+                    st.download_button(
+                        label="📄 Listen-Plan als CSV",
+                        data=list_csv,
+                        file_name=f"schichtplan_liste_2025.csv",
+                        mime="text/csv"
+                    )
         else:
             st.info("Keine Einträge für die gewählten Filter gefunden.")
     
