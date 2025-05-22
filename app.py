@@ -145,8 +145,16 @@ def generate_fair_schedule(preferences, year=2025):
             # Basis-Score: Negative Anzahl bisheriger Zuweisungen (weniger = besser)
             base_score = -assignment_count[emp]
             
-            # Bonus für Wunschtag
-            preference_bonus = 10 if weekday_name in preferences[emp] else 0
+            # Prioritäts-basierter Bonus für Wunschtag
+            preference_bonus = 0
+            if weekday_name in preferences[emp]:
+                priority_index = preferences[emp].index(weekday_name)
+                if priority_index == 0:  # 1. Wahl
+                    preference_bonus = 15
+                elif priority_index == 1:  # 2. Wahl
+                    preference_bonus = 10
+                elif priority_index == 2:  # 3. Wahl
+                    preference_bonus = 5
             
             # Kleiner Zufallsfaktor für Variabilität
             random_factor = random.uniform(-1, 1)
@@ -193,7 +201,11 @@ def main():
         if existing_prefs:
             st.subheader("Bereits eingegebene Präferenzen:")
             for name, days in existing_prefs.items():
-                st.write(f"**{name}**: {', '.join(days)}")
+                if len(days) >= 3:
+                    pref_text = f"🥇 {days[0]} | 🥈 {days[1]} | 🥉 {days[2]}"
+                else:
+                    pref_text = ', '.join(days)
+                st.write(f"**{name}**: {pref_text}")
             st.write(f"**Gesamt**: {len(existing_prefs)} von 20 Mitarbeitenden")
         
         st.divider()
@@ -208,22 +220,48 @@ def main():
             )
             
             weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
-            preferred_days = st.multiselect(
-                "Wählen Sie genau 3 bevorzugte Wochentage:",
-                weekdays,
-                help="Bitte wählen Sie exakt 3 Tage aus"
-            )
+            
+            st.markdown("**Geben Sie Ihre 3 Wunsch-Wochentage in Prioritätsreihenfolge an:**")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                first_choice = st.selectbox(
+                    "🥇 1. Wahl:",
+                    [""] + weekdays,
+                    help="Ihr absoluter Lieblings-Wochentag"
+                )
+            
+            with col2:
+                # Entferne die bereits gewählten Optionen
+                available_second = [day for day in weekdays if day != first_choice]
+                second_choice = st.selectbox(
+                    "🥈 2. Wahl:",
+                    [""] + available_second,
+                    help="Ihr zweitliebster Wochentag"
+                )
+            
+            with col3:
+                # Entferne die bereits gewählten Optionen
+                available_third = [day for day in weekdays if day not in [first_choice, second_choice]]
+                third_choice = st.selectbox(
+                    "🥉 3. Wahl:",
+                    [""] + available_third,
+                    help="Ihr drittliebster Wochentag"
+                )
             
             submitted = st.form_submit_button("Präferenz speichern")
             
             if submitted:
                 if not name.strip():
                     st.error("Bitte geben Sie einen Namen ein.")
-                elif len(preferred_days) != 3:
-                    st.error("Bitte wählen Sie genau 3 Wochentage aus.")
+                elif not first_choice or not second_choice or not third_choice:
+                    st.error("Bitte wählen Sie alle 3 Prioritäten aus.")
                 else:
+                    # Speichere in Prioritätsreihenfolge
+                    preferred_days = [first_choice, second_choice, third_choice]
                     save_preferences(name.strip(), preferred_days)
-                    st.success(f"Präferenz für {name} erfolgreich gespeichert!")
+                    st.success(f"Präferenz für {name} erfolgreich gespeichert! 🎉")
                     st.rerun()
     
     elif mode == "Schichtplan generieren":
@@ -243,7 +281,12 @@ def main():
         # Übersicht der Präferenzen
         st.subheader("Übersicht der Präferenzen")
         prefs_df = pd.DataFrame([
-            {"Name": name, "Bevorzugte Tage": ", ".join(days)}
+            {
+                "Name": name, 
+                "🥇 1. Wahl": days[0] if len(days) > 0 else "",
+                "🥈 2. Wahl": days[1] if len(days) > 1 else "",
+                "🥉 3. Wahl": days[2] if len(days) > 2 else ""
+            }
             for name, days in preferences.items()
         ])
         st.dataframe(prefs_df, use_container_width=True)
@@ -271,14 +314,26 @@ def main():
                 
                 with col2:
                     st.subheader("💯 Wunscherfüllungsrate")
-                    pref_df = pd.DataFrame([
-                        {
-                            "Name": name, 
-                            "Wunschtage erfüllt": preference_score[name],
-                            "Rate": f"{(preference_score[name]/assignment_count[name]*100):.1f}%" if assignment_count[name] > 0 else "0%"
-                        }
-                        for name in preferences.keys()
-                    ])
+                    
+                    # Berechne detaillierte Statistiken
+                    detailed_stats = []
+                    for name in preferences.keys():
+                        total_assignments = assignment_count[name]
+                        total_preference_matches = preference_score[name]
+                        
+                        if total_assignments > 0:
+                            rate = (total_preference_matches / total_assignments * 100)
+                        else:
+                            rate = 0
+                            
+                        detailed_stats.append({
+                            "Name": name,
+                            "Gesamt Schichten": total_assignments,
+                            "Wunschtage erfüllt": total_preference_matches,
+                            "Erfüllungsrate": f"{rate:.1f}%"
+                        })
+                    
+                    pref_df = pd.DataFrame(detailed_stats)
                     st.dataframe(pref_df, use_container_width=True)
                 
                 st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
