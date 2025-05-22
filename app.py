@@ -228,25 +228,26 @@ def main():
             with col1:
                 first_choice = st.selectbox(
                     "🥇 1. Wahl:",
-                    [""] + weekdays,
+                    ["Bitte wählen..."] + weekdays,
                     help="Ihr absoluter Lieblings-Wochentag"
                 )
             
             with col2:
-                # Entferne die bereits gewählten Optionen
-                available_second = [day for day in weekdays if day != first_choice]
+                # Entferne die bereits gewählten Optionen (aber nicht "Bitte wählen...")
+                available_second = [day for day in weekdays if day != first_choice or first_choice == "Bitte wählen..."]
                 second_choice = st.selectbox(
                     "🥈 2. Wahl:",
-                    [""] + available_second,
+                    ["Bitte wählen..."] + available_second,
                     help="Ihr zweitliebster Wochentag"
                 )
             
             with col3:
-                # Entferne die bereits gewählten Optionen
-                available_third = [day for day in weekdays if day not in [first_choice, second_choice]]
+                # Entferne die bereits gewählten Optionen (aber nicht "Bitte wählen...")
+                chosen_days = [day for day in [first_choice, second_choice] if day != "Bitte wählen..."]
+                available_third = [day for day in weekdays if day not in chosen_days]
                 third_choice = st.selectbox(
                     "🥉 3. Wahl:",
-                    [""] + available_third,
+                    ["Bitte wählen..."] + available_third,
                     help="Ihr drittliebster Wochentag"
                 )
             
@@ -255,7 +256,9 @@ def main():
             if submitted:
                 if not name.strip():
                     st.error("Bitte geben Sie einen Namen ein.")
-                elif not first_choice or not second_choice or not third_choice:
+                elif (first_choice == "Bitte wählen..." or 
+                      second_choice == "Bitte wählen..." or 
+                      third_choice == "Bitte wählen..."):
                     st.error("Bitte wählen Sie alle 3 Prioritäten aus.")
                 else:
                     # Speichere in Prioritätsreihenfolge
