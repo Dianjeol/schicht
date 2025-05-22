@@ -12,6 +12,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import io
+import hashlib
+import uuid
 
 # Seitenkonfiguration
 st.set_page_config(
@@ -46,6 +48,16 @@ def init_database():
         )
     ''')
     
+    # Tabelle für Login-Sessions (90 Tage Passwort-Speicherung)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS login_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_token TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -64,11 +76,11 @@ def save_preferences(name, preferred_days):
     conn.close()
 
 def load_preferences():
-    """Lädt alle Mitarbeiterpräferenzen aus der Datenbank"""
+    """Lädt alle Mitarbeiterpräferenzen aus der Datenbank (alphabetisch sortiert)"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT name, preferred_days FROM preferences')
+    cursor.execute('SELECT name, preferred_days FROM preferences ORDER BY name ASC')
     results = cursor.fetchall()
     
     preferences = {}
@@ -77,6 +89,29 @@ def load_preferences():
     
     conn.close()
     return preferences
+
+def delete_preference(name):
+    """Löscht eine Mitarbeiterpräferenz aus der Datenbank"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM preferences WHERE name = ?', (name,))
+    
+    conn.commit()
+    conn.close()
+
+def get_preference_by_name(name):
+    """Holt eine spezifische Präferenz nach Name"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT preferred_days FROM preferences WHERE name = ?', (name,))
+    result = cursor.fetchone()
+    
+    conn.close()
+    if result:
+        return result[0].split(',')
+    return None
 
 def save_schedule(schedule_data):
     """Speichert den generierten Schichtplan"""
@@ -110,6 +145,54 @@ def load_schedule():
     
     conn.close()
     return schedule
+
+# Session-Management für 90-Tage Passwort-Speicherung
+def create_session_token():
+    """Erstellt einen neuen Session-Token"""
+    return str(uuid.uuid4())
+
+def save_login_session(token):
+    """Speichert einen Login-Session-Token für 90 Tage"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    expires_at = datetime.now() + timedelta(days=90)
+    
+    cursor.execute('''
+        INSERT INTO login_sessions (session_token, expires_at)
+        VALUES (?, ?)
+    ''', (token, expires_at))
+    
+    conn.commit()
+    conn.close()
+
+def is_valid_session_token(token):
+    """Prüft ob ein Session-Token noch gültig ist"""
+    if not token:
+        return False
+        
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT expires_at FROM login_sessions 
+        WHERE session_token = ? AND expires_at > datetime('now')
+    ''', (token,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    return result is not None
+
+def cleanup_expired_sessions():
+    """Entfernt abgelaufene Session-Tokens"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM login_sessions WHERE expires_at <= datetime("now")')
+    
+    conn.commit()
+    conn.close()
 
 # PDF-Generation-Funktionen
 def generate_pdf_report(schedule_data, title, weeks_data):
@@ -296,13 +379,28 @@ def generate_fair_schedule(preferences, year=2025):
     
     return schedule, assignment_count, preference_score
 
-# Passwort-Authentifizierung
+# Passwort-Authentifizierung mit 90-Tage Speicherung
 def check_password():
-    """Überprüft das Passwort für den Zugang zur App"""
+    """Überprüft das Passwort für den Zugang zur App mit 90-Tage Speicherung"""
+    
+    # Cleanup abgelaufene Sessions
+    cleanup_expired_sessions()
+    
+    # Prüfe ob bereits ein gültiger Session-Token existiert
+    if "session_token" in st.session_state:
+        if is_valid_session_token(st.session_state["session_token"]):
+            return True
+        else:
+            # Token abgelaufen, entferne aus Session State
+            del st.session_state["session_token"]
     
     def password_entered():
         """Überprüft ob das eingegebene Passwort korrekt ist"""
         if st.session_state["password"] == "msh":
+            # Passwort korrekt - erstelle neuen Session-Token
+            token = create_session_token()
+            save_login_session(token)
+            st.session_state["session_token"] = token
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # Passwort aus Session State entfernen
         else:
@@ -319,6 +417,7 @@ def check_password():
             key="password",
             placeholder="Passwort eingeben..."
         )
+        st.info("💡 **Hinweis**: Das Passwort wird für 90 Tage gespeichert.")
         st.markdown("---")
         st.markdown("*Professioneller Schichtplaner für Teams*")
         return False
@@ -334,6 +433,7 @@ def check_password():
             placeholder="Passwort eingeben..."
         )
         st.error("😞 Passwort ist leider nicht korrekt. Bitte versuchen Sie es erneut.")
+        st.info("💡 **Hinweis**: Das Passwort wird für 90 Tage gespeichert.")
         st.markdown("---")
         st.markdown("*Professioneller Schichtplaner für Teams*")
         return False
@@ -373,18 +473,147 @@ def main():
         # Lade vorhandene Präferenzen
         existing_prefs = load_preferences()
         
-        # Zeige bereits eingegeben Präferenzen
+        # Zeige bereits eingegeben Präferenzen mit Bearbeitungsoptionen
         if existing_prefs:
-            st.subheader("Bereits eingegebene Präferenzen:")
+            st.subheader("Bereits eingegebene Präferenzen (alphabetisch sortiert):")
+            
+            # Erstelle DataFrame für bessere Darstellung
+            prefs_list = []
             for name, days in existing_prefs.items():
                 if len(days) >= 3:
-                    pref_text = f"🥇 {days[0]} | 🥈 {days[1]} | 🥉 {days[2]}"
+                    prefs_list.append({
+                        "Name": name,
+                        "🥇 1. Wahl": days[0],
+                        "🥈 2. Wahl": days[1], 
+                        "🥉 3. Wahl": days[2]
+                    })
                 else:
-                    pref_text = ', '.join(days)
-                st.write(f"**{name}**: {pref_text}")
+                    # Fallback für unvollständige Daten
+                    prefs_list.append({
+                        "Name": name,
+                        "🥇 1. Wahl": days[0] if len(days) > 0 else "",
+                        "🥈 2. Wahl": days[1] if len(days) > 1 else "",
+                        "🥉 3. Wahl": days[2] if len(days) > 2 else ""
+                    })
+            
+            prefs_df = pd.DataFrame(prefs_list)
+            st.dataframe(prefs_df, use_container_width=True, hide_index=True)
+            
             st.write(f"**Gesamt**: {len(existing_prefs)} von 20 Mitarbeitenden")
+            
+            # Bearbeitungs- und Löschoptionen
+            st.subheader("🔧 Präferenzen bearbeiten/löschen")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Präferenz bearbeiten:**")
+                edit_name = st.selectbox(
+                    "Person auswählen:",
+                    ["Keine Auswahl"] + list(existing_prefs.keys()),
+                    key="edit_selectbox"
+                )
+                
+                if edit_name != "Keine Auswahl":
+                    if st.button(f"✏️ {edit_name} bearbeiten", type="secondary"):
+                        st.session_state.edit_mode = True
+                        st.session_state.edit_name = edit_name
+                        st.session_state.edit_prefs = existing_prefs[edit_name]
+                        st.rerun()
+            
+            with col2:
+                st.markdown("**Präferenz löschen:**")
+                delete_name = st.selectbox(
+                    "Person auswählen:",
+                    ["Keine Auswahl"] + list(existing_prefs.keys()),
+                    key="delete_selectbox"
+                )
+                
+                if delete_name != "Keine Auswahl":
+                    if st.button(f"🗑️ {delete_name} löschen", type="secondary"):
+                        if st.session_state.get("confirm_delete", False):
+                            delete_preference(delete_name)
+                            st.success(f"✅ Präferenz für **{delete_name}** wurde gelöscht.")
+                            if "confirm_delete" in st.session_state:
+                                del st.session_state["confirm_delete"]
+                            st.rerun()
+                        else:
+                            st.session_state.confirm_delete = True
+                            st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
         
         st.divider()
+        
+        # Bearbeitungsmodus
+        if st.session_state.get("edit_mode", False):
+            st.subheader(f"✏️ Präferenz bearbeiten: {st.session_state.edit_name}")
+            st.info("💡 Ändern Sie die gewünschten Werte und speichern Sie.")
+            
+            edit_name = st.text_input(
+                "Name:",
+                value=st.session_state.edit_name,
+                key="edit_name_input"
+            )
+            
+            weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
+            current_prefs = st.session_state.edit_prefs
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                edit_first = st.selectbox(
+                    "🥇 1. Wahl:",
+                    weekdays,
+                    index=weekdays.index(current_prefs[0]) if len(current_prefs) > 0 and current_prefs[0] in weekdays else 0,
+                    key="edit_first_choice"
+                )
+            
+            with col2:
+                available_second = [day for day in weekdays if day != edit_first]
+                edit_second = st.selectbox(
+                    "🥈 2. Wahl:",
+                    available_second,
+                    index=available_second.index(current_prefs[1]) if len(current_prefs) > 1 and current_prefs[1] in available_second else 0,
+                    key="edit_second_choice"
+                )
+            
+            with col3:
+                available_third = [day for day in weekdays if day not in [edit_first, edit_second]]
+                edit_third = st.selectbox(
+                    "🥉 3. Wahl:",
+                    available_third,
+                    index=available_third.index(current_prefs[2]) if len(current_prefs) > 2 and current_prefs[2] in available_third else 0,
+                    key="edit_third_choice"
+                )
+            
+            col_save, col_cancel = st.columns(2)
+            
+            with col_save:
+                if st.button("💾 Änderungen speichern", type="primary"):
+                    # Lösche alte Präferenz wenn Name geändert wurde
+                    if edit_name != st.session_state.edit_name:
+                        delete_preference(st.session_state.edit_name)
+                    
+                    # Speichere neue/geänderte Präferenz
+                    new_prefs = [edit_first, edit_second, edit_third]
+                    save_preferences(edit_name, new_prefs)
+                    
+                    st.success(f"✅ Präferenz für **{edit_name}** wurde aktualisiert!")
+                    
+                    # Reset edit mode
+                    del st.session_state.edit_mode
+                    del st.session_state.edit_name
+                    del st.session_state.edit_prefs
+                    st.rerun()
+            
+            with col_cancel:
+                if st.button("❌ Abbrechen", type="secondary"):
+                    # Reset edit mode
+                    del st.session_state.edit_mode
+                    del st.session_state.edit_name
+                    del st.session_state.edit_prefs
+                    st.rerun()
+            
+            st.divider()
         
         # Eingabeformular ohne Form (um Session State Problem zu vermeiden)
         st.subheader("Neue Präferenz hinzufügen")
@@ -501,8 +730,8 @@ def main():
         if len(preferences) < 10:
             st.warning("⚠️ Weniger als 10 Mitarbeitende eingegeben. Für optimale Fairness sollten alle 20 Mitarbeitenden ihre Präferenzen eingeben.")
         
-        # Übersicht der Präferenzen
-        st.subheader("Übersicht der Präferenzen")
+        # Übersicht der Präferenzen (alphabetisch sortiert)
+        st.subheader("Übersicht der Präferenzen (alphabetisch sortiert)")
         prefs_df = pd.DataFrame([
             {
                 "Name": name, 
@@ -510,7 +739,7 @@ def main():
                 "🥈 2. Wahl": days[1] if len(days) > 1 else "",
                 "🥉 3. Wahl": days[2] if len(days) > 2 else ""
             }
-            for name, days in preferences.items()
+            for name, days in sorted(preferences.items())  # Alphabetische Sortierung
         ])
         st.dataframe(prefs_df, use_container_width=True)
         
@@ -581,7 +810,7 @@ def main():
         with col2:
             employee_filter = st.selectbox(
                 "Mitarbeiter filtern:",
-                ["Alle"] + sorted(set(schedule.values()))
+                ["Alle"] + sorted(set(schedule.values()))  # Bereits alphabetisch sortiert
             )
         
         # Daten für Kalenderwochen-Ansicht vorbereiten
