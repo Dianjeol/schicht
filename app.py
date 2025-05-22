@@ -445,7 +445,7 @@ def check_password():
             placeholder="Passwort eingeben..."
         )
         st.markdown("---")
-        st.markdown("*Professioneller Schichtplaner für Teams*")
+        st.markdown("*Effizienter Schichtplaner für Teams*")
         return False
     elif not st.session_state["password_correct"]:
         # Passwort war falsch
@@ -460,7 +460,7 @@ def check_password():
         )
         st.error("😞 Passwort ist leider nicht korrekt. Bitte versuchen Sie es erneut.")
         st.markdown("---")
-        st.markdown("*Professioneller Schichtplaner für Teams*")
+        st.markdown("*Effizienter Schichtplaner für Teams*")
         return False
     else:
         # Passwort korrekt
@@ -473,7 +473,7 @@ def main():
         return
     
     st.title("📅 Schichtplaner 2025")
-    st.markdown("*Professionelle Schichtplanung für faire Teams*")
+    st.markdown("*Effiziente Schichtplanung für Teams*")
     
     # Logout-Button in der Sidebar
     with st.sidebar:
@@ -1080,7 +1080,7 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666; padding: 20px;'>
-            <small>📅 Schichtplaner 2025 | Professionelle Schichtplanung</small>
+            <small>📅 Schichtplaner 2025 | Effiziente Schichtplanung</small>
         </div>
         """, 
         unsafe_allow_html=True
