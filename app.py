@@ -190,7 +190,7 @@ def generate_pdf_report(schedule_data, title, weeks_data):
     
     # Footer
     story.append(Spacer(1, 30))
-    story.append(Paragraph("💖 Erstellt mit Liebe und Streamlit-Magie 💖", subtitle_style))
+    story.append(Paragraph("Schichtplaner 2025 - Automatisch generiert", subtitle_style))
     
     # Build PDF
     doc.build(story)
@@ -320,7 +320,7 @@ def check_password():
             placeholder="Passwort eingeben..."
         )
         st.markdown("---")
-        st.markdown("*💝 Mit Liebe für faire Teams entwickelt*")
+        st.markdown("*Professioneller Schichtplaner für Teams*")
         return False
     elif not st.session_state["password_correct"]:
         # Passwort war falsch
@@ -335,7 +335,7 @@ def check_password():
         )
         st.error("😞 Passwort ist leider nicht korrekt. Bitte versuchen Sie es erneut.")
         st.markdown("---")
-        st.markdown("*💝 Mit Liebe für faire Teams entwickelt*")
+        st.markdown("*Professioneller Schichtplaner für Teams*")
         return False
     else:
         # Passwort korrekt
@@ -350,8 +350,8 @@ def main():
     # Initialisiere Datenbank
     init_database()
     
-    st.title("🌟✨ Schichtplaner 2025 ✨🌟")
-    st.markdown("*Mit Liebe für faire Teams entwickelt* 💝")
+    st.title("📅 Schichtplaner 2025")
+    st.markdown("*Professionelle Schichtplanung für faire Teams*")
     
     # Logout-Button in der Sidebar
     with st.sidebar:
@@ -828,9 +828,9 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666; padding: 20px;'>
-            <small>✨ Schichtplaner 2025 | Mit 💖 und Streamlit-Magie erstellt ✨<br>
-            🎭 <a href='https://github.com/Dianjeol/schicht' target='_blank' style='text-decoration: none; color: #ff6b6b;'>GitHub Repository</a> | 
-            🌟 <a href='https://schicht.streamlit.app/' target='_blank' style='text-decoration: none; color: #4ecdc4;'>Live erleben</a> 🌟</small>
+            <small>📅 Schichtplaner 2025 | Professionelle Schichtplanung<br>
+            <a href='https://github.com/Dianjeol/schicht' target='_blank' style='text-decoration: none; color: #666;'>GitHub Repository</a> | 
+            <a href='https://schicht.streamlit.app/' target='_blank' style='text-decoration: none; color: #666;'>Live Demo</a></small>
         </div>
         """, 
         unsafe_allow_html=True
