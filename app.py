@@ -9,7 +9,7 @@ import sqlite3
 
 # Seitenkonfiguration
 st.set_page_config(
-    page_title="Schichtplaner 2024",
+    page_title="Schichtplaner 2025",
     page_icon="📅",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -106,7 +106,7 @@ def load_schedule():
     return schedule
 
 # Schichtplanungsalgorithmus
-def generate_fair_schedule(preferences, year=2024):
+def generate_fair_schedule(preferences, year=2025):
     """
     Generiert einen fairen Jahresschichtplan basierend auf Mitarbeiterpräferenzen
     """
@@ -173,8 +173,8 @@ def main():
     # Initialisiere Datenbank
     init_database()
     
-    st.title("📅 Schichtplaner 2024")
-    st.markdown("*Fairer Jahresschichtplan für 20 Mitarbeitende*")
+    st.title("🌟✨ Schichtplaner 2025 ✨🌟")
+    st.markdown("*Mit Liebe für faire Teams entwickelt* 💝")
     
     # Sidebar für Navigation
     st.sidebar.title("Navigation")
@@ -297,7 +297,7 @@ def main():
         with col1:
             month_filter = st.selectbox(
                 "Monat auswählen:",
-                ["Alle"] + [f"{i:02d} - {datetime(2024, i, 1).strftime('%B')}" for i in range(1, 13)]
+                ["Alle"] + [f"{i:02d} - {datetime(2025, i, 1).strftime('%B')}" for i in range(1, 13)]
             )
         
         with col2:
@@ -350,7 +350,7 @@ def main():
             st.download_button(
                 label="📄 Plan als CSV herunterladen",
                 data=csv,
-                file_name=f"schichtplan_2024.csv",
+                file_name=f"schichtplan_2025.csv",
                 mime="text/csv"
             )
         else:
@@ -360,9 +360,10 @@ def main():
     st.divider()
     st.markdown(
         """
-        <div style='text-align: center; color: #666;'>
-            <small>Schichtplaner 2024 | Erstellt mit Streamlit | 
-            <a href='https://github.com/Dianjeol/schicht' target='_blank'>GitHub Repository</a></small>
+        <div style='text-align: center; color: #666; padding: 20px;'>
+            <small>✨ Schichtplaner 2025 | Mit 💖 und Streamlit-Magie erstellt ✨<br>
+            🎭 <a href='https://github.com/Dianjeol/schicht' target='_blank' style='text-decoration: none; color: #ff6b6b;'>GitHub Repository</a> | 
+            🌟 <a href='https://schicht.streamlit.app/' target='_blank' style='text-decoration: none; color: #4ecdc4;'>Live erleben</a> 🌟</small>
         </div>
         """, 
         unsafe_allow_html=True
