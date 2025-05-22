@@ -524,46 +524,6 @@ def main():
             st.dataframe(prefs_df, use_container_width=True, hide_index=True)
             
             st.write(f"**Gesamt**: {len(existing_prefs)} von 20 Mitarbeitenden")
-            
-            # Bearbeitungs- und Löschoptionen
-            st.subheader("🔧 Personen bearbeiten/löschen")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Person bearbeiten:**")
-                edit_name = st.selectbox(
-                    "Person auswählen:",
-                    ["Keine Auswahl"] + list(existing_prefs.keys()),
-                    key="edit_selectbox"
-                )
-                
-                if edit_name != "Keine Auswahl":
-                    if st.button(f"✏️ {edit_name} bearbeiten", type="secondary"):
-                        st.session_state.edit_mode = True
-                        st.session_state.edit_name = edit_name
-                        st.session_state.edit_prefs = existing_prefs[edit_name]
-                        st.rerun()
-            
-            with col2:
-                st.markdown("**Person löschen:**")
-                delete_name = st.selectbox(
-                    "Person auswählen:",
-                    ["Keine Auswahl"] + list(existing_prefs.keys()),
-                    key="delete_selectbox"
-                )
-                
-                if delete_name != "Keine Auswahl":
-                    if st.button(f"🗑️ {delete_name} löschen", type="secondary"):
-                        if st.session_state.get("confirm_delete", False):
-                            delete_preference(delete_name)
-                            st.success(f"✅ Person **{delete_name}** wurde gelöscht.")
-                            if "confirm_delete" in st.session_state:
-                                del st.session_state["confirm_delete"]
-                            st.rerun()
-                        else:
-                            st.session_state.confirm_delete = True
-                            st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
         
         st.divider()
         
@@ -640,7 +600,7 @@ def main():
             st.divider()
         
         # Eingabeformular ohne Form (um Session State Problem zu vermeiden)
-        st.subheader("Person bearbeiten/löschen")
+        st.subheader("Neue Person hinzufügen")
         
         # Initialisiere Session State für Formular-Reset
         if 'form_reset_trigger' not in st.session_state:
@@ -739,6 +699,48 @@ def main():
                     # Reset das Formular durch Erhöhung des Triggers
                     st.session_state.form_reset_trigger += 1
                     st.rerun()
+        
+        # Bearbeitungs- und Löschoptionen
+        if existing_prefs:
+            st.divider()
+            st.subheader("🔧 Personen bearbeiten/löschen")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Person bearbeiten:**")
+                edit_name = st.selectbox(
+                    "Person auswählen:",
+                    ["Keine Auswahl"] + list(existing_prefs.keys()),
+                    key="edit_selectbox"
+                )
+                
+                if edit_name != "Keine Auswahl":
+                    if st.button(f"✏️ {edit_name} bearbeiten", type="secondary"):
+                        st.session_state.edit_mode = True
+                        st.session_state.edit_name = edit_name
+                        st.session_state.edit_prefs = existing_prefs[edit_name]
+                        st.rerun()
+            
+            with col2:
+                st.markdown("**Person löschen:**")
+                delete_name = st.selectbox(
+                    "Person auswählen:",
+                    ["Keine Auswahl"] + list(existing_prefs.keys()),
+                    key="delete_selectbox"
+                )
+                
+                if delete_name != "Keine Auswahl":
+                    if st.button(f"🗑️ {delete_name} löschen", type="secondary"):
+                        if st.session_state.get("confirm_delete", False):
+                            delete_preference(delete_name)
+                            st.success(f"✅ Person **{delete_name}** wurde gelöscht.")
+                            if "confirm_delete" in st.session_state:
+                                del st.session_state["confirm_delete"]
+                            st.rerun()
+                        else:
+                            st.session_state.confirm_delete = True
+                            st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
     
     elif mode == "Schichtplan generieren":
         st.header("⚙️ Schichtplan generieren")
