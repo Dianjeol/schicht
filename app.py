@@ -551,16 +551,26 @@ def get_current_and_next_weeks(schedule_data, num_weeks=4):
     return filtered_data
 
 # Schichtplanungsalgorithmus
-def generate_fair_schedule(preferences, year=2025):
+def generate_fair_schedule(preferences, start_date=None, end_date=None, year=2025):
     """
-    Generiert einen fairen Jahresschichtplan mit User-für-User Rotation:
+    Generiert einen fairen Schichtplan mit User-für-User Rotation:
     1. Jeder Mitarbeiter kommt nacheinander dran (Round-Robin)
     2. Jedem wird der bestmögliche verfügbare Tag zugeteilt (vorzugsweise 1. Wunsch)
     3. Garantiert gleichmäßige Verteilung und maximale Wunscherfüllung
+    
+    Args:
+        preferences: Dictionary mit Mitarbeiter-Präferenzen
+        start_date: Startdatum (datetime object) - überschreibt year Parameter
+        end_date: Enddatum (datetime object) - überschreibt year Parameter  
+        year: Jahr für Generierung (nur verwendet wenn start_date/end_date nicht gesetzt)
     """
-    # Erstelle Liste aller Arbeitstage im Jahr (Mo-Fr)
-    start_date = datetime(year, 1, 1)
-    end_date = datetime(year, 12, 31)
+    # Bestimme Zeitraum
+    if start_date is None or end_date is None:
+        # Fallback auf Jahr-Parameter
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year, 12, 31)
+    
+    # Erstelle Liste aller Arbeitstage im Zeitraum (Mo-Fr)
     
     available_days = []
     current_date = start_date
@@ -1255,7 +1265,133 @@ def main():
         
         st.write(f"**Anzahl eingetragener Mitarbeitender**: {len(preferences)}")
         
-
+        st.divider()
+        
+        # Zeitraum-Auswahl
+        st.subheader("🗓️ Zeitraum für Schichtplan-Generierung")
+        
+        time_period = st.radio(
+            "Wählen Sie den gewünschten Zeitraum:",
+            [
+                "📅 Gesamtes Kalenderjahr 2025",
+                "🌙 1 Monat", 
+                "🌿 3 Monate",
+                "⏳ 1 Jahr ab heute",
+                "🎯 Benutzerdefiniert (genaue Daten)"
+            ]
+        )
+        
+        # Variablen für Start- und Enddatum
+        schedule_start_date = None
+        schedule_end_date = None
+        
+        if time_period == "📅 Gesamtes Kalenderjahr 2025":
+            schedule_start_date = datetime(2025, 1, 1)
+            schedule_end_date = datetime(2025, 12, 31)
+            st.info(f"📆 **Zeitraum**: 01.01.2025 - 31.12.2025 (Ganzes Jahr)")
+            
+        elif time_period == "🌙 1 Monat":
+            col_month1, col_month2 = st.columns(2)
+            with col_month1:
+                selected_year = st.selectbox(
+                    "Jahr:",
+                    [2024, 2025, 2026],
+                    index=1,  # Default 2025
+                    key="month_year"
+                )
+            with col_month2:
+                selected_month = st.selectbox(
+                    "Monat:",
+                    list(range(1, 13)),
+                    format_func=lambda x: f"{x:02d} - {datetime(2025, x, 1).strftime('%B')}",
+                    key="selected_month"
+                )
+            
+            schedule_start_date = datetime(selected_year, selected_month, 1)
+            # Letzter Tag des Monats
+            if selected_month == 12:
+                schedule_end_date = datetime(selected_year + 1, 1, 1) - timedelta(days=1)
+            else:
+                schedule_end_date = datetime(selected_year, selected_month + 1, 1) - timedelta(days=1)
+            
+            st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}")
+            
+        elif time_period == "🌿 3 Monate":
+            col_3m1, col_3m2 = st.columns(2)
+            with col_3m1:
+                start_year = st.selectbox(
+                    "Jahr:",
+                    [2024, 2025, 2026],
+                    index=1,  # Default 2025
+                    key="three_month_year"
+                )
+            with col_3m2:
+                start_month = st.selectbox(
+                    "Startmonat:",
+                    list(range(1, 13)),
+                    format_func=lambda x: f"{x:02d} - {datetime(2025, x, 1).strftime('%B')}",
+                    key="three_month_start"
+                )
+            
+            schedule_start_date = datetime(start_year, start_month, 1)
+            # 3 Monate später
+            end_month = start_month + 2
+            end_year = start_year
+            if end_month > 12:
+                end_month -= 12
+                end_year += 1
+            
+            # Letzter Tag des dritten Monats
+            if end_month == 12:
+                schedule_end_date = datetime(end_year + 1, 1, 1) - timedelta(days=1)
+            else:
+                schedule_end_date = datetime(end_year, end_month + 1, 1) - timedelta(days=1)
+            
+            st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (3 Monate)")
+            
+        elif time_period == "⏳ 1 Jahr ab heute":
+            today = datetime.now().date()
+            schedule_start_date = datetime.combine(today, datetime.min.time())
+            schedule_end_date = schedule_start_date + timedelta(days=365)
+            st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Jahr ab heute)")
+            
+        elif time_period == "🎯 Benutzerdefiniert (genaue Daten)":
+            col_custom1, col_custom2 = st.columns(2)
+            with col_custom1:
+                custom_start = st.date_input(
+                    "Startdatum:",
+                    value=datetime(2025, 1, 1).date(),
+                    min_value=datetime(2024, 1, 1).date(),
+                    max_value=datetime(2030, 12, 31).date(),
+                    key="custom_start_date"
+                )
+            with col_custom2:
+                custom_end = st.date_input(
+                    "Enddatum:",
+                    value=datetime(2025, 12, 31).date(),
+                    min_value=datetime(2024, 1, 1).date(),
+                    max_value=datetime(2030, 12, 31).date(),
+                    key="custom_end_date"
+                )
+            
+            if custom_start and custom_end:
+                if custom_start <= custom_end:
+                    schedule_start_date = datetime.combine(custom_start, datetime.min.time())
+                    schedule_end_date = datetime.combine(custom_end, datetime.min.time())
+                    
+                    # Berechne Anzahl Werktage
+                    total_days = (schedule_end_date - schedule_start_date).days + 1
+                    weekdays = sum(1 for i in range(total_days) 
+                                 if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+                    
+                    st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}")
+                    st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+                else:
+                    st.error("❌ Das Enddatum muss nach dem Startdatum liegen!")
+                    schedule_start_date = None
+                    schedule_end_date = None
+        
+        st.divider()
         
         # Übersicht der Personen (alphabetisch sortiert)
         st.subheader("Übersicht der Personen (alphabetisch sortiert)")
@@ -1276,11 +1412,23 @@ def main():
         
         # Generierung starten
         if st.button("🎯 Schichtplan generieren", type="primary"):
-            with st.spinner("Generiere optimalen Schichtplan..."):
-                schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(preferences)
-                save_schedule(schedule)
+            if schedule_start_date is None or schedule_end_date is None:
+                st.error("❌ Bitte wählen Sie einen gültigen Zeitraum aus!")
+            else:
+                with st.spinner("Generiere optimalen Schichtplan..."):
+                    schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(
+                        preferences, 
+                        start_date=schedule_start_date, 
+                        end_date=schedule_end_date
+                    )
+                    save_schedule(schedule)
                 
-                st.success("✅ Schichtplan erfolgreich generiert!")
+                    # Berechne Anzahl generierter Schichten
+                    num_shifts = len(schedule)
+                    period_text = f"{schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}"
+                    
+                    st.success(f"✅ Schichtplan erfolgreich generiert!")
+                    st.info(f"📅 **Zeitraum**: {period_text} | **Schichten**: {num_shifts}")
                 
                 # Statistiken anzeigen
                 col1, col2 = st.columns(2)
