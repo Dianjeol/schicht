@@ -176,13 +176,69 @@ def generate_fair_schedule(preferences, year=2025):
     
     return schedule, assignment_count, preference_score
 
+# Passwort-Authentifizierung
+def check_password():
+    """Überprüft das Passwort für den Zugang zur App"""
+    
+    def password_entered():
+        """Überprüft ob das eingegebene Passwort korrekt ist"""
+        if st.session_state["password"] == "msh":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Passwort aus Session State entfernen
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # Erstes Mal - zeige Passwort-Eingabe
+        st.markdown("### 🔐 Schichtplaner 2025 - Zugang")
+        st.markdown("*Bitte geben Sie das Passwort ein:*")
+        st.text_input(
+            "Passwort", 
+            type="password", 
+            on_change=password_entered, 
+            key="password",
+            placeholder="Passwort eingeben..."
+        )
+        st.markdown("---")
+        st.markdown("*💝 Mit Liebe für faire Teams entwickelt*")
+        return False
+    elif not st.session_state["password_correct"]:
+        # Passwort war falsch
+        st.markdown("### 🔐 Schichtplaner 2025 - Zugang")
+        st.markdown("*Bitte geben Sie das Passwort ein:*")
+        st.text_input(
+            "Passwort", 
+            type="password", 
+            on_change=password_entered, 
+            key="password",
+            placeholder="Passwort eingeben..."
+        )
+        st.error("😞 Passwort ist leider nicht korrekt. Bitte versuchen Sie es erneut.")
+        st.markdown("---")
+        st.markdown("*💝 Mit Liebe für faire Teams entwickelt*")
+        return False
+    else:
+        # Passwort korrekt
+        return True
+
 # Streamlit UI
 def main():
+    # Passwort-Check
+    if not check_password():
+        return
+    
     # Initialisiere Datenbank
     init_database()
     
     st.title("🌟✨ Schichtplaner 2025 ✨🌟")
     st.markdown("*Mit Liebe für faire Teams entwickelt* 💝")
+    
+    # Logout-Button in der Sidebar
+    with st.sidebar:
+        if st.button("🚪 Logout", type="secondary"):
+            for key in st.session_state.keys():
+                del st.session_state[key]
+            st.rerun()
     
     # Sidebar für Navigation
     st.sidebar.title("Navigation")
@@ -419,8 +475,10 @@ def main():
                 kw_key = f"KW {week:02d}"
                 
                 if kw_key not in weekly_data:
+                    # Formatiere mit grauen Klammern und Datum
+                    kw_formatted = f"{kw_display} ({date_range})"
                     weekly_data[kw_key] = {
-                        "Kalenderwoche": f"{kw_display}\n{date_range}",
+                        "Kalenderwoche": kw_formatted,
                         "Montag": "",
                         "Dienstag": "",
                         "Mittwoch": "",
@@ -444,13 +502,18 @@ def main():
             
             st.subheader(f"📅 Schichtplan Kalenderwochen-Ansicht ({len(filtered_schedule)} Schichten)")
             
-            # CSS für ausgegraut Datum
+            # CSS für bessere Darstellung der Kalenderwochen
             st.markdown("""
                 <style>
-                .date-column {
+                /* Styling für Kalenderwochen-Tabelle */
+                .stDataFrame [data-testid="stDataFrameCell"] {
+                    font-size: 0.9em;
+                }
+                
+                /* Allgemeine Verbesserungen */
+                .date-range {
                     color: #888888 !important;
                     font-size: 0.85em !important;
-                    font-style: italic !important;
                 }
                 </style>
             """, unsafe_allow_html=True)
