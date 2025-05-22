@@ -392,6 +392,15 @@ def main():
             filtered_schedule[date_str] = employee
         
         if filtered_schedule:
+            # Hilfsfunktion um das Datum einer Kalenderwoche zu berechnen
+            def get_week_dates(year, week):
+                # Erster Tag der Woche (Montag)
+                jan4 = datetime(year, 1, 4)
+                week_start = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
+                # Letzter Arbeitstag der Woche (Freitag)
+                week_end = week_start + timedelta(days=4)
+                return week_start, week_end
+            
             # Erstelle Kalenderwochen-Tabelle
             weekly_data = {}
             
@@ -400,11 +409,18 @@ def main():
                 
                 # Berechne Kalenderwoche
                 year, week, weekday = date_obj.isocalendar()
+                
+                # Berechne Start- und Enddatum der Woche
+                week_start, week_end = get_week_dates(year, week)
+                
+                # Formatiere die KW mit Datumsbereich
+                kw_display = f"KW {week:02d}"
+                date_range = f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}"
                 kw_key = f"KW {week:02d}"
                 
                 if kw_key not in weekly_data:
                     weekly_data[kw_key] = {
-                        "KW": kw_key,
+                        "Kalenderwoche": f"{kw_display}\n{date_range}",
                         "Montag": "",
                         "Dienstag": "",
                         "Mittwoch": "",
@@ -428,13 +444,24 @@ def main():
             
             st.subheader(f"📅 Schichtplan Kalenderwochen-Ansicht ({len(filtered_schedule)} Schichten)")
             
+            # CSS für ausgegraut Datum
+            st.markdown("""
+                <style>
+                .date-column {
+                    color: #888888 !important;
+                    font-size: 0.85em !important;
+                    font-style: italic !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
             # Zeige die Tabelle mit verbessertem Styling
             st.dataframe(
                 df,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "KW": st.column_config.TextColumn("📅 KW", width="small"),
+                    "Kalenderwoche": st.column_config.TextColumn("📅 Kalenderwoche", width="medium", help="Kalenderwoche mit Zeitraum (Montag bis Freitag)"),
                     "Montag": st.column_config.TextColumn("🔵 Montag", width="medium"),
                     "Dienstag": st.column_config.TextColumn("🟢 Dienstag", width="medium"),
                     "Mittwoch": st.column_config.TextColumn("🟡 Mittwoch", width="medium"),
