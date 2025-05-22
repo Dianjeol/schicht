@@ -171,28 +171,52 @@ def is_valid_session_token(token):
     if not token:
         return False
         
-    conn = sqlite3.connect('schichtplaner.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT expires_at FROM login_sessions 
-        WHERE session_token = ? AND expires_at > datetime('now')
-    ''', (token,))
-    
-    result = cursor.fetchone()
-    conn.close()
-    
-    return result is not None
+    try:
+        conn = sqlite3.connect('schichtplaner.db')
+        cursor = conn.cursor()
+        
+        # Prüfe ob Tabelle existiert
+        cursor.execute('''
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='login_sessions'
+        ''')
+        
+        if not cursor.fetchone():
+            conn.close()
+            return False
+        
+        cursor.execute('''
+            SELECT expires_at FROM login_sessions 
+            WHERE session_token = ? AND expires_at > datetime('now')
+        ''', (token,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result is not None
+    except sqlite3.Error:
+        return False
 
 def cleanup_expired_sessions():
     """Entfernt abgelaufene Session-Tokens"""
-    conn = sqlite3.connect('schichtplaner.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('DELETE FROM login_sessions WHERE expires_at <= datetime("now")')
-    
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('schichtplaner.db')
+        cursor = conn.cursor()
+        
+        # Prüfe ob Tabelle existiert
+        cursor.execute('''
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='login_sessions'
+        ''')
+        
+        if cursor.fetchone():
+            cursor.execute('DELETE FROM login_sessions WHERE expires_at <= datetime("now")')
+            conn.commit()
+        
+        conn.close()
+    except sqlite3.Error:
+        # Fehler beim Cleanup ignorieren - Tabelle existiert möglicherweise noch nicht
+        pass
 
 # PDF-Generation-Funktionen
 def generate_pdf_report(schedule_data, title, weeks_data):
@@ -383,6 +407,9 @@ def generate_fair_schedule(preferences, year=2025):
 def check_password():
     """Überprüft das Passwort für den Zugang zur App mit 90-Tage Speicherung"""
     
+    # Initialisiere Datenbank falls noch nicht geschehen
+    init_database()
+    
     # Cleanup abgelaufene Sessions
     cleanup_expired_sessions()
     
@@ -443,12 +470,9 @@ def check_password():
 
 # Streamlit UI
 def main():
-    # Passwort-Check
+    # Passwort-Check (initialisiert auch die Datenbank)
     if not check_password():
         return
-    
-    # Initialisiere Datenbank
-    init_database()
     
     st.title("📅 Schichtplaner 2025")
     st.markdown("*Professionelle Schichtplanung für faire Teams*")
