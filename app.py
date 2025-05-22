@@ -444,7 +444,6 @@ def check_password():
             key="password",
             placeholder="Passwort eingeben..."
         )
-        st.info("💡 **Hinweis**: Das Passwort wird für 90 Tage gespeichert.")
         st.markdown("---")
         st.markdown("*Professioneller Schichtplaner für Teams*")
         return False
@@ -460,7 +459,6 @@ def check_password():
             placeholder="Passwort eingeben..."
         )
         st.error("😞 Passwort ist leider nicht korrekt. Bitte versuchen Sie es erneut.")
-        st.info("💡 **Hinweis**: Das Passwort wird für 90 Tage gespeichert.")
         st.markdown("---")
         st.markdown("*Professioneller Schichtplaner für Teams*")
         return False
