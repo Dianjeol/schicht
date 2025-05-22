@@ -58,6 +58,19 @@ def init_database():
         )
     ''')
     
+    # Tabelle für Urlaub und Nichtverfügbarkeit
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unavailability (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,  -- 'urlaub' oder 'wochentag'
+            date TEXT,           -- Für Urlaub: YYYY-MM-DD Format
+            weekday TEXT,        -- Für Wochentag: z.B. 'Montag'
+            reason TEXT,         -- Beschreibung/Grund
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -145,6 +158,74 @@ def load_schedule():
     
     conn.close()
     return schedule
+
+def save_unavailability(name, unavail_type, date=None, weekday=None, reason=""):
+    """Speichert Urlaub oder Wochentag-Nichtverfügbarkeit"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO unavailability (name, type, date, weekday, reason)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (name, unavail_type, date, weekday, reason))
+    
+    conn.commit()
+    conn.close()
+
+def load_unavailability():
+    """Lädt alle Urlaubs- und Nichtverfügbarkeitseinträge (alphabetisch sortiert)"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT name, type, date, weekday, reason FROM unavailability ORDER BY name, date, weekday')
+    results = cursor.fetchall()
+    
+    conn.close()
+    return results
+
+def delete_unavailability(entry_id):
+    """Löscht einen Urlaubs-/Nichtverfügbarkeitseintrag"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM unavailability WHERE id = ?', (entry_id,))
+    
+    conn.commit()
+    conn.close()
+
+def get_unavailability_by_id(entry_id):
+    """Holt einen spezifischen Urlaubs-/Nichtverfügbarkeitseintrag"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, name, type, date, weekday, reason FROM unavailability WHERE id = ?', (entry_id,))
+    result = cursor.fetchone()
+    
+    conn.close()
+    return result
+
+def is_employee_unavailable(employee, date_obj):
+    """Prüft ob ein Mitarbeiter an einem bestimmten Datum nicht verfügbar ist"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    date_str = date_obj.strftime('%Y-%m-%d')
+    weekday_name = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][date_obj.weekday()]
+    
+    # Prüfe Urlaub an diesem Datum
+    cursor.execute('SELECT id FROM unavailability WHERE name = ? AND type = "urlaub" AND date = ?', (employee, date_str))
+    if cursor.fetchone():
+        conn.close()
+        return True
+    
+    # Prüfe generelle Nichtverfügbarkeit an diesem Wochentag
+    cursor.execute('SELECT id FROM unavailability WHERE name = ? AND type = "wochentag" AND weekday = ?', (employee, weekday_name))
+    if cursor.fetchone():
+        conn.close()
+        return True
+    
+    conn.close()
+    return False
 
 # Session-Management für 90-Tage Passwort-Speicherung
 def create_session_token():
@@ -372,6 +453,10 @@ def generate_fair_schedule(preferences, year=2025):
         
         # Durchsuche verfügbare Tage nach bestem Match
         for day in available_days:
+            # Prüfe ob Mitarbeiter an diesem Tag verfügbar ist
+            if is_employee_unavailable(current_employee, day):
+                continue  # Überspringe Urlaubs-/Nichtverfügbarkeitstage
+                
             weekday_name = weekday_names[day.weekday()]
             
             if weekday_name in preferences[current_employee]:
@@ -385,9 +470,11 @@ def generate_fair_schedule(preferences, year=2025):
                 if best_priority == 6:
                     best_day = day
         
-        # Falls kein Tag gefunden (sollte nicht passieren), nimm ersten verfügbaren
+        # Falls kein Tag gefunden, suche nach anderen Mitarbeitern oder überspringe
         if best_day is None:
-            best_day = available_days[0]
+            # Wenn kein Tag für diesen Mitarbeiter verfügbar ist, überspringe ihn
+            employee_index = (employee_index + 1) % len(employees)
+            continue
         
         # Weise Tag zu
         schedule[best_day.strftime('%Y-%m-%d')] = current_employee
@@ -508,7 +595,7 @@ def main():
     st.sidebar.title("Navigation")
     mode = st.sidebar.radio(
         "Wählen Sie eine Option:",
-        ["Personen eingeben", "Schichtplan generieren", "Plan anzeigen"]
+        ["Personen eingeben", "Urlaub eintragen", "Schichtplan generieren", "Plan anzeigen"]
     )
     
     if mode == "Personen eingeben":
@@ -827,6 +914,198 @@ def main():
                         else:
                             st.session_state.confirm_delete = True
                             st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
+    
+    elif mode == "Urlaub eintragen":
+        st.header("🏖️ Urlaub und Nichtverfügbarkeit eintragen")
+        
+        preferences = load_preferences()
+        
+        if len(preferences) == 0:
+            st.warning("Noch keine Personen eingegeben. Bitte gehen Sie zuerst zu 'Personen eingeben'.")
+            return
+        
+        # Lade vorhandene Einträge
+        unavail_entries = load_unavailability()
+        
+        # Zeige bereits eingetragene Urlaube/Nichtverfügbarkeiten
+        if unavail_entries:
+            st.subheader("Bereits eingetragene Urlaube und Nichtverfügbarkeiten:")
+            
+            # Erstelle DataFrame für bessere Darstellung
+            entries_list = []
+            for i, (name, entry_type, date, weekday, reason) in enumerate(unavail_entries):
+                if entry_type == "urlaub":
+                    if date:
+                        date_obj = datetime.strptime(date, '%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%d.%m.%Y')
+                        entry_desc = f"📅 Urlaub am {formatted_date}"
+                    else:
+                        entry_desc = "📅 Urlaub (Datum fehlt)"
+                else:  # wochentag
+                    entry_desc = f"⛔ Nie verfügbar am {weekday}"
+                
+                entries_list.append({
+                    "Name": name,
+                    "Art": entry_desc,
+                    "Grund": reason if reason else "-",
+                    "ID": i  # Für Löschen
+                })
+            
+            entries_df = pd.DataFrame(entries_list)
+            st.dataframe(entries_df[["Name", "Art", "Grund"]], use_container_width=True, hide_index=True)
+            
+            st.write(f"**Gesamt**: {len(unavail_entries)} Einträge")
+        
+        st.divider()
+        
+        # Eingabeformular
+        st.subheader("Neue Nichtverfügbarkeit hinzufügen")
+        
+        # Initialisiere Session State für Formular-Reset
+        if 'unavail_form_reset_trigger' not in st.session_state:
+            st.session_state.unavail_form_reset_trigger = 0
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            unavail_name = st.selectbox(
+                "Person auswählen:",
+                ["Bitte wählen..."] + list(preferences.keys()),
+                key=f"unavail_name_{st.session_state.unavail_form_reset_trigger}"
+            )
+        
+        with col2:
+            unavail_type = st.radio(
+                "Art der Nichtverfügbarkeit:",
+                ["🏖️ Urlaub (spezifisches Datum)", "⛔ Generell nie verfügbar (Wochentag)"],
+                key=f"unavail_type_{st.session_state.unavail_form_reset_trigger}"
+            )
+        
+        if unavail_type == "🏖️ Urlaub (spezifisches Datum)":
+            col3, col4 = st.columns(2)
+            with col3:
+                unavail_date = st.date_input(
+                    "Urlaubsdatum:",
+                    value=datetime.now().date(),
+                    min_value=datetime(2025, 1, 1).date(),
+                    max_value=datetime(2025, 12, 31).date(),
+                    key=f"unavail_date_{st.session_state.unavail_form_reset_trigger}"
+                )
+            with col4:
+                unavail_reason = st.text_input(
+                    "Grund (optional):",
+                    placeholder="z.B. Familienurlaub, Arzttermin...",
+                    key=f"unavail_reason_{st.session_state.unavail_form_reset_trigger}"
+                )
+        else:  # Wochentag
+            col3, col4 = st.columns(2)
+            with col3:
+                unavail_weekday = st.selectbox(
+                    "Wochentag:",
+                    ["Bitte wählen...", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"],
+                    key=f"unavail_weekday_{st.session_state.unavail_form_reset_trigger}"
+                )
+            with col4:
+                unavail_reason = st.text_input(
+                    "Grund (optional):",
+                    placeholder="z.B. Kinderbetreuung, andere Verpflichtung...",
+                    key=f"unavail_reason_{st.session_state.unavail_form_reset_trigger}"
+                )
+        
+        # Submit Button
+        submitted = st.button("Nichtverfügbarkeit speichern", type="primary", use_container_width=True)
+        
+        if submitted:
+            # Validierung der Eingaben
+            if unavail_name == "Bitte wählen...":
+                st.error("❌ Bitte wählen Sie eine Person aus.")
+            elif unavail_type == "🏖️ Urlaub (spezifisches Datum)":
+                # Prüfe Urlaubsdatum
+                if unavail_date:
+                    # Prüfe ob es ein Werktag ist
+                    if unavail_date.weekday() >= 5:  # Samstag=5, Sonntag=6
+                        st.error("❌ Urlaub kann nur für Werktage (Mo-Fr) eingetragen werden.")
+                    else:
+                        # Speichere Urlaub
+                        save_unavailability(
+                            unavail_name, 
+                            "urlaub", 
+                            date=unavail_date.strftime('%Y-%m-%d'),
+                            reason=unavail_reason
+                        )
+                        st.success(f"✅ Urlaub für **{unavail_name}** am {unavail_date.strftime('%d.%m.%Y')} eingetragen! 🏖️")
+                        # Reset das Formular
+                        st.session_state.unavail_form_reset_trigger += 1
+                        st.rerun()
+                else:
+                    st.error("❌ Bitte wählen Sie ein Datum aus.")
+            else:  # Wochentag
+                if unavail_weekday == "Bitte wählen...":
+                    st.error("❌ Bitte wählen Sie einen Wochentag aus.")
+                else:
+                    # Speichere Wochentag-Nichtverfügbarkeit
+                    save_unavailability(
+                        unavail_name,
+                        "wochentag",
+                        weekday=unavail_weekday,
+                        reason=unavail_reason
+                    )
+                    st.success(f"✅ **{unavail_name}** ist ab sofort nie am {unavail_weekday} verfügbar! ⛔")
+                    # Reset das Formular
+                    st.session_state.unavail_form_reset_trigger += 1
+                    st.rerun()
+        
+        # Löschoptionen
+        if unavail_entries:
+            st.divider()
+            st.subheader("🗑️ Einträge löschen")
+            
+            # Erstelle Optionen für Selectbox
+            delete_options = ["Keine Auswahl"]
+            for i, (name, entry_type, date, weekday, reason) in enumerate(unavail_entries):
+                if entry_type == "urlaub":
+                    if date:
+                        date_obj = datetime.strptime(date, '%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%d.%m.%Y')
+                        option_text = f"{name} - Urlaub am {formatted_date}"
+                    else:
+                        option_text = f"{name} - Urlaub (Datum fehlt)"
+                else:  # wochentag
+                    option_text = f"{name} - Nie verfügbar am {weekday}"
+                
+                if reason:
+                    option_text += f" ({reason})"
+                    
+                delete_options.append(option_text)
+            
+            delete_selection = st.selectbox(
+                "Eintrag zum Löschen auswählen:",
+                delete_options,
+                key="delete_unavail_selectbox"
+            )
+            
+            if delete_selection != "Keine Auswahl":
+                selected_index = delete_options.index(delete_selection) - 1  # -1 wegen "Keine Auswahl"
+                
+                if st.button(f"🗑️ Löschen: {delete_selection}", type="secondary"):
+                    if st.session_state.get("confirm_delete_unavail", False):
+                        # Lösche den Eintrag - wir brauchen die echte DB ID
+                        conn = sqlite3.connect('schichtplaner.db')
+                        cursor = conn.cursor()
+                        cursor.execute('SELECT id FROM unavailability ORDER BY name, date, weekday LIMIT 1 OFFSET ?', (selected_index,))
+                        result = cursor.fetchone()
+                        if result:
+                            entry_id = result[0]
+                            delete_unavailability(entry_id)
+                            st.success(f"✅ Eintrag wurde gelöscht.")
+                        conn.close()
+                        
+                        if "confirm_delete_unavail" in st.session_state:
+                            del st.session_state["confirm_delete_unavail"]
+                        st.rerun()
+                    else:
+                        st.session_state.confirm_delete_unavail = True
+                        st.warning(f"⚠️ Klicken Sie erneut, um den Eintrag endgültig zu löschen!")
     
     elif mode == "Schichtplan generieren":
         st.header("⚙️ Schichtplan generieren")
