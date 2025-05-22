@@ -335,14 +335,10 @@ def get_current_and_next_weeks(schedule_data, num_weeks=4):
 # Schichtplanungsalgorithmus
 def generate_fair_schedule(preferences, year=2025):
     """
-    Generiert einen fairen Jahresschichtplan basierend auf Mitarbeiterpräferenzen
+    Generiert einen fairen Jahresschichtplan mit optimaler Prioritätenverteilung:
+    1. Möglichst gleich viele Schichten für alle
+    2. Möglichst gleich viele erste/zweite/dritte Wünsche für alle
     """
-    # Wochentage Mapping
-    weekdays = {
-        'Montag': 0, 'Dienstag': 1, 'Mittwoch': 2, 
-        'Donnerstag': 3, 'Freitag': 4, 'Samstag': 5, 'Sonntag': 6
-    }
-    
     # Erstelle Liste aller Arbeitstage im Jahr (Mo-Fr)
     start_date = datetime(year, 1, 1)
     end_date = datetime(year, 12, 31)
@@ -354,10 +350,10 @@ def generate_fair_schedule(preferences, year=2025):
             workdays.append(current_date)
         current_date += timedelta(days=1)
     
-    # Initialisiere Zähler und Zuweisungen
+    # Initialisiere Zähler
     employees = list(preferences.keys())
     assignment_count = {emp: 0 for emp in employees}
-    preference_score = {emp: 0 for emp in employees}
+    preference_stats = {emp: {'first': 0, 'second': 0, 'third': 0, 'none': 0} for emp in employees}
     schedule = {}
     
     # Sortiere Arbeitstage für gleichmäßige Verteilung
@@ -366,42 +362,94 @@ def generate_fair_schedule(preferences, year=2025):
     for date in workdays:
         weekday_name = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][date.weekday()]
         
-        # Bewerte jeden Mitarbeiter für diesen Tag
-        scores = []
-        for emp in employees:
-            # Basis-Score: Negative Anzahl bisheriger Zuweisungen (weniger = besser)
-            base_score = -assignment_count[emp]
-            
-            # Prioritäts-basierter Bonus für Wunschtag
-            preference_bonus = 0
-            if weekday_name in preferences[emp]:
-                priority_index = preferences[emp].index(weekday_name)
-                if priority_index == 0:  # 1. Wahl
-                    preference_bonus = 15
-                elif priority_index == 1:  # 2. Wahl
-                    preference_bonus = 10
-                elif priority_index == 2:  # 3. Wahl
-                    preference_bonus = 5
-            
-            # Kleiner Zufallsfaktor für Variabilität
-            random_factor = random.uniform(-1, 1)
-            
-            total_score = base_score + preference_bonus + random_factor
-            scores.append((total_score, emp))
+        # Finde optimalen Mitarbeiter basierend auf Fairness-Prioritäten
+        best_employees = employees[:]
         
-        # Wähle Mitarbeiter mit höchstem Score
-        scores.sort(reverse=True)
-        chosen_employee = scores[0][1]
+        # Priorität 1: Mitarbeiter mit wenigsten Schichten
+        min_assignments = min(assignment_count[emp] for emp in employees)
+        best_employees = [emp for emp in best_employees if assignment_count[emp] == min_assignments]
+        
+        if len(best_employees) == 1:
+            chosen_employee = best_employees[0]
+        else:
+            # Priorität 2: Unter denen mit wenigsten Schichten, 
+            # bevorzuge die mit diesem Wochentag in ihren Präferenzen
+            
+            # Kategorisiere Mitarbeiter nach ihrer Präferenz für diesen Tag
+            first_choice_candidates = []
+            second_choice_candidates = []
+            third_choice_candidates = []
+            no_preference_candidates = []
+            
+            for emp in best_employees:
+                if weekday_name in preferences[emp]:
+                    priority_index = preferences[emp].index(weekday_name)
+                    if priority_index == 0:  # 1. Wahl
+                        first_choice_candidates.append(emp)
+                    elif priority_index == 1:  # 2. Wahl
+                        second_choice_candidates.append(emp)
+                    elif priority_index == 2:  # 3. Wahl
+                        third_choice_candidates.append(emp)
+                else:
+                    no_preference_candidates.append(emp)
+            
+            # Wähle nach Präferenz-Priorität und Fairness
+            chosen_employee = None
+            
+            # Prüfe erst 1. Wahl Kandidaten
+            if first_choice_candidates:
+                min_first_wishes = min(preference_stats[emp]['first'] for emp in first_choice_candidates)
+                fairest_candidates = [emp for emp in first_choice_candidates 
+                                    if preference_stats[emp]['first'] == min_first_wishes]
+                chosen_employee = random.choice(fairest_candidates)
+            
+            # Dann 2. Wahl Kandidaten
+            elif second_choice_candidates:
+                min_second_wishes = min(preference_stats[emp]['second'] for emp in second_choice_candidates)
+                fairest_candidates = [emp for emp in second_choice_candidates 
+                                    if preference_stats[emp]['second'] == min_second_wishes]
+                chosen_employee = random.choice(fairest_candidates)
+            
+            # Dann 3. Wahl Kandidaten
+            elif third_choice_candidates:
+                min_third_wishes = min(preference_stats[emp]['third'] for emp in third_choice_candidates)
+                fairest_candidates = [emp for emp in third_choice_candidates 
+                                    if preference_stats[emp]['third'] == min_third_wishes]
+                chosen_employee = random.choice(fairest_candidates)
+            
+            # Zuletzt die ohne Präferenz für diesen Tag
+            else:
+                min_none_assignments = min(preference_stats[emp]['none'] for emp in no_preference_candidates)
+                fairest_candidates = [emp for emp in no_preference_candidates 
+                                    if preference_stats[emp]['none'] == min_none_assignments]
+                chosen_employee = random.choice(fairest_candidates)
         
         # Aktualisiere Zähler
         assignment_count[chosen_employee] += 1
+        
+        # Aktualisiere Präferenz-Statistiken
         if weekday_name in preferences[chosen_employee]:
-            preference_score[chosen_employee] += 1
+            priority_index = preferences[chosen_employee].index(weekday_name)
+            if priority_index == 0:  # 1. Wahl
+                preference_stats[chosen_employee]['first'] += 1
+            elif priority_index == 1:  # 2. Wahl
+                preference_stats[chosen_employee]['second'] += 1
+            elif priority_index == 2:  # 3. Wahl
+                preference_stats[chosen_employee]['third'] += 1
+        else:
+            preference_stats[chosen_employee]['none'] += 1
         
         # Speichere Zuweisung
         schedule[date.strftime('%Y-%m-%d')] = chosen_employee
     
-    return schedule, assignment_count, preference_score
+    # Berechne traditionelle preference_score für Kompatibilität mit vorhandener UI
+    preference_score = {}
+    for emp in employees:
+        preference_score[emp] = (preference_stats[emp]['first'] + 
+                               preference_stats[emp]['second'] + 
+                               preference_stats[emp]['third'])
+    
+    return schedule, assignment_count, preference_score, preference_stats
 
 # Passwort-Authentifizierung mit 90-Tage Speicherung
 def check_password():
@@ -771,7 +819,7 @@ def main():
         # Generierung starten
         if st.button("🎯 Fairen Schichtplan generieren", type="primary"):
             with st.spinner("Generiere optimalen Schichtplan..."):
-                schedule, assignment_count, preference_score = generate_fair_schedule(preferences)
+                schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(preferences)
                 save_schedule(schedule)
                 
                 st.success("✅ Schichtplan erfolgreich generiert!")
@@ -780,36 +828,55 @@ def main():
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.subheader("📊 Zuweisungsstatistik")
+                    st.subheader("📊 Schichtverteilung")
                     stats_df = pd.DataFrame([
                         {"Name": name, "Anzahl Schichten": count}
                         for name, count in assignment_count.items()
                     ]).sort_values("Anzahl Schichten", ascending=False)
                     st.dataframe(stats_df, use_container_width=True)
+                    
+                    # Zeige Verteilungsstatistik
+                    min_shifts = min(assignment_count.values())
+                    max_shifts = max(assignment_count.values())
+                    st.metric("Fairness", f"Spreizung: {max_shifts - min_shifts} Schichten", 
+                             help="Unterschied zwischen Person mit meisten und wenigsten Schichten")
                 
                 with col2:
-                    st.subheader("💯 Wunscherfüllungsrate")
+                    st.subheader("🎯 Detaillierte Wunscherfüllung")
                     
-                    # Berechne detaillierte Statistiken
+                    # Erstelle detaillierte Wunsch-Statistik
                     detailed_stats = []
-                    for name in preferences.keys():
+                    for name in sorted(preferences.keys()):
                         total_assignments = assignment_count[name]
-                        total_preference_matches = preference_score[name]
+                        first_wishes = preference_stats[name]['first']
+                        second_wishes = preference_stats[name]['second'] 
+                        third_wishes = preference_stats[name]['third']
+                        no_wishes = preference_stats[name]['none']
                         
-                        if total_assignments > 0:
-                            rate = (total_preference_matches / total_assignments * 100)
-                        else:
-                            rate = 0
-                            
                         detailed_stats.append({
                             "Name": name,
-                            "Gesamt Schichten": total_assignments,
-                            "Wunschtage erfüllt": total_preference_matches,
-                            "Erfüllungsrate": f"{rate:.1f}%"
+                            "🥇 1. Wünsche": first_wishes,
+                            "🥈 2. Wünsche": second_wishes,
+                            "🥉 3. Wünsche": third_wishes,
+                            "❌ Keine Wünsche": no_wishes,
+                            "Gesamt": total_assignments
                         })
                     
                     pref_df = pd.DataFrame(detailed_stats)
                     st.dataframe(pref_df, use_container_width=True)
+                    
+                    # Zeige Fairness-Metriken für Wünsche
+                    total_first = sum(preference_stats[emp]['first'] for emp in preferences.keys())
+                    total_second = sum(preference_stats[emp]['second'] for emp in preferences.keys())
+                    total_third = sum(preference_stats[emp]['third'] for emp in preferences.keys())
+                    
+                    col_a, col_b, col_c = st.columns(3)
+                    with col_a:
+                        st.metric("🥇 Erste Wünsche", total_first)
+                    with col_b:
+                        st.metric("🥈 Zweite Wünsche", total_second)
+                    with col_c:
+                        st.metric("🥉 Dritte Wünsche", total_third)
                 
                 st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
     
