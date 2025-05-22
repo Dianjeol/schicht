@@ -405,7 +405,9 @@ def main():
                 first_choice = st.selectbox(
                     "🥇 1. Wahl:",
                     ["Bitte wählen..."] + weekdays,
-                    help="Ihr absoluter Lieblings-Wochentag"
+                    index=0,
+                    help="Ihr absoluter Lieblings-Wochentag",
+                    key="first_choice_selectbox"
                 )
             
             with col2:
@@ -418,7 +420,9 @@ def main():
                 second_choice = st.selectbox(
                     "🥈 2. Wahl:",
                     ["Bitte wählen..."] + available_second,
-                    help="Ihr zweitliebster Wochentag"
+                    index=0,
+                    help="Ihr zweitliebster Wochentag",
+                    key="second_choice_selectbox"
                 )
             
             with col3:
@@ -434,24 +438,48 @@ def main():
                 third_choice = st.selectbox(
                     "🥉 3. Wahl:",
                     ["Bitte wählen..."] + available_third,
-                    help="Ihr drittliebster Wochentag"
+                    index=0,
+                    help="Ihr drittliebster Wochentag",
+                    key="third_choice_selectbox"
                 )
             
             submitted = st.form_submit_button("Präferenz speichern")
             
             if submitted:
+                # Debug-Informationen (temporär)
+                st.write("🔍 **Debug-Info:**")
+                st.write(f"- 1. Wahl: '{first_choice}' (Typ: {type(first_choice)})")
+                st.write(f"- 2. Wahl: '{second_choice}' (Typ: {type(second_choice)})")  
+                st.write(f"- 3. Wahl: '{third_choice}' (Typ: {type(third_choice)})")
+                st.write(f"- Name: '{name}' (leer: {not name.strip()})")
+                
+                # Prüfe jeden Wert einzeln
+                first_is_placeholder = (first_choice == "Bitte wählen...")
+                second_is_placeholder = (second_choice == "Bitte wählen...")
+                third_is_placeholder = (third_choice == "Bitte wählen...")
+                
+                st.write(f"- 1. Wahl ist Platzhalter: {first_is_placeholder}")
+                st.write(f"- 2. Wahl ist Platzhalter: {second_is_placeholder}")
+                st.write(f"- 3. Wahl ist Platzhalter: {third_is_placeholder}")
+                
                 if not name.strip():
                     st.error("Bitte geben Sie einen Namen ein.")
-                elif (first_choice == "Bitte wählen..." or 
-                      second_choice == "Bitte wählen..." or 
-                      third_choice == "Bitte wählen..."):
+                elif first_is_placeholder or second_is_placeholder or third_is_placeholder:
                     st.error("Bitte wählen Sie alle 3 Prioritäten aus.")
+                    st.write(f"❌ **Grund**: Eine oder mehrere Auswahlen sind noch auf 'Bitte wählen...'")
                 else:
-                    # Speichere in Prioritätsreihenfolge
-                    preferred_days = [first_choice, second_choice, third_choice]
-                    save_preferences(name.strip(), preferred_days)
-                    st.success(f"Präferenz für {name} erfolgreich gespeichert! 🎉")
-                    st.rerun()
+                    # Prüfe auf Duplikate
+                    choices = [first_choice, second_choice, third_choice]
+                    if len(set(choices)) != 3:
+                        st.error("Bitte wählen Sie 3 verschiedene Wochentage aus.")
+                        st.write(f"❌ **Grund**: Duplikate gefunden in {choices}")
+                    else:
+                        # Speichere in Prioritätsreihenfolge
+                        preferred_days = [first_choice, second_choice, third_choice]
+                        save_preferences(name.strip(), preferred_days)
+                        st.success(f"✅ Präferenz für {name} erfolgreich gespeichert! 🎉")
+                        st.success(f"✅ Gespeichert: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice}")
+                        st.rerun()
     
     elif mode == "Schichtplan generieren":
         st.header("⚙️ Schichtplan generieren")
