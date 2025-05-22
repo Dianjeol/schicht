@@ -233,8 +233,12 @@ def main():
                 )
             
             with col2:
-                # Entferne die bereits gewählten Optionen (aber nicht "Bitte wählen...")
-                available_second = [day for day in weekdays if day != first_choice or first_choice == "Bitte wählen..."]
+                # Entferne die bereits gewählten Optionen
+                if first_choice == "Bitte wählen...":
+                    available_second = weekdays
+                else:
+                    available_second = [day for day in weekdays if day != first_choice]
+                
                 second_choice = st.selectbox(
                     "🥈 2. Wahl:",
                     ["Bitte wählen..."] + available_second,
@@ -242,9 +246,15 @@ def main():
                 )
             
             with col3:
-                # Entferne die bereits gewählten Optionen (aber nicht "Bitte wählen...")
-                chosen_days = [day for day in [first_choice, second_choice] if day != "Bitte wählen..."]
+                # Entferne bereits gewählte Optionen
+                chosen_days = []
+                if first_choice != "Bitte wählen...":
+                    chosen_days.append(first_choice)
+                if second_choice != "Bitte wählen...":
+                    chosen_days.append(second_choice)
+                
                 available_third = [day for day in weekdays if day not in chosen_days]
+                
                 third_choice = st.selectbox(
                     "🥉 3. Wahl:",
                     ["Bitte wählen..."] + available_third,
@@ -254,12 +264,16 @@ def main():
             submitted = st.form_submit_button("Präferenz speichern")
             
             if submitted:
+                # Debug-Info (wird später entfernt)
+                st.write(f"Debug - 1. Wahl: '{first_choice}', 2. Wahl: '{second_choice}', 3. Wahl: '{third_choice}'")
+                
                 if not name.strip():
                     st.error("Bitte geben Sie einen Namen ein.")
                 elif (first_choice == "Bitte wählen..." or 
                       second_choice == "Bitte wählen..." or 
                       third_choice == "Bitte wählen..."):
                     st.error("Bitte wählen Sie alle 3 Prioritäten aus.")
+                    st.write(f"Fehler-Details: 1='{first_choice}', 2='{second_choice}', 3='{third_choice}'")
                 else:
                     # Speichere in Prioritätsreihenfolge
                     preferred_days = [first_choice, second_choice, third_choice]
