@@ -300,8 +300,53 @@ def cleanup_expired_sessions():
         pass
 
 # PDF-Generation-Funktionen
-def generate_pdf_report(schedule_data, title, weeks_data):
-    """Generiert ein PDF-Report des Schichtplans"""
+def calculate_statistics_from_schedule(schedule_data):
+    """Berechnet Statistiken aus vorhandenen Schichtplan-Daten"""
+    if not schedule_data:
+        return {}, {}
+    
+    # Lade Präferenzen für Wunscherfüllung
+    preferences = load_preferences()
+    
+    # Initialisiere Zähler
+    assignment_count = defaultdict(int)
+    preference_stats = defaultdict(lambda: {'first': 0, 'second': 0, 'third': 0, 'fourth': 0, 'fifth': 0, 'none': 0})
+    
+    weekday_names = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
+    
+    # Durchlaufe alle Schichten und zähle
+    for date_str, employee in schedule_data.items():
+        # Zähle Schichten
+        assignment_count[employee] += 1
+        
+        # Bestimme Wochentag
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            weekday_name = weekday_names[date_obj.weekday()]
+            
+            # Prüfe Wunscherfüllung
+            if employee in preferences and weekday_name in preferences[employee]:
+                priority_index = preferences[employee].index(weekday_name)
+                if priority_index == 0:  # 1. Wahl
+                    preference_stats[employee]['first'] += 1
+                elif priority_index == 1:  # 2. Wahl
+                    preference_stats[employee]['second'] += 1
+                elif priority_index == 2:  # 3. Wahl
+                    preference_stats[employee]['third'] += 1
+                elif priority_index == 3:  # 4. Wahl
+                    preference_stats[employee]['fourth'] += 1
+                elif priority_index == 4:  # 5. Wahl
+                    preference_stats[employee]['fifth'] += 1
+            else:
+                preference_stats[employee]['none'] += 1
+        except (ValueError, IndexError):
+            # Fehlerhafte Daten ignorieren
+            preference_stats[employee]['none'] += 1
+    
+    return dict(assignment_count), dict(preference_stats)
+
+def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=False):
+    """Generiert ein PDF-Report des Schichtplans mit optionalen Statistiken"""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=30, bottomMargin=30)
     
@@ -375,6 +420,98 @@ def generate_pdf_report(schedule_data, title, weeks_data):
         story.append(table)
     else:
         story.append(Paragraph("Keine Daten für den gewählten Zeitraum verfügbar.", styles['Normal']))
+    
+    # Statistiken hinzufügen wenn gewünscht
+    if include_statistics and schedule_data:
+        story.append(Spacer(1, 30))
+        
+        # Berechne Statistiken aus den Schichtplan-Daten
+        assignment_count, preference_stats = calculate_statistics_from_schedule(schedule_data)
+        
+        if assignment_count:
+            # Heading für Statistiken
+            stats_heading = ParagraphStyle(
+                'StatsHeading',
+                parent=styles['Heading2'],
+                fontSize=14,
+                spaceAfter=15,
+                textColor=colors.HexColor('#2E4057')
+            )
+            story.append(Paragraph("📊 Statistiken", stats_heading))
+            
+            # Schichtverteilung
+            story.append(Paragraph("Schichtverteilung:", styles['Heading3']))
+            stats_data = [["Name", "Anzahl Schichten"]]
+            
+            # Sortiere nach Anzahl Schichten (absteigend)
+            sorted_assignments = sorted(assignment_count.items(), key=lambda x: x[1], reverse=True)
+            for name, count in sorted_assignments:
+                stats_data.append([name, str(count)])
+            
+            # Fairness-Metrik
+            if len(assignment_count) > 1:
+                min_shifts = min(assignment_count.values())
+                max_shifts = max(assignment_count.values())
+                stats_data.append(["", ""])  # Leerzeile
+                stats_data.append(["Fairness (Spreizung)", f"{max_shifts - min_shifts} Schichten"])
+            
+            stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8F4FD')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2E4057')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -2), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            story.append(stats_table)
+            story.append(Spacer(1, 20))
+            
+            # Wunscherfüllung
+            story.append(Paragraph("Detaillierte Wunscherfüllung:", styles['Heading3']))
+            wish_data = [["Name", "🥇 1. Wünsche", "🥈 2. Wünsche", "🥉 3. Wünsche", "🏅 4. Wünsche", "🏅 5. Wünsche", "❌ Keine", "Gesamt"]]
+            
+            # Sortiere alphabetisch
+            for name in sorted(preference_stats.keys()):
+                stats = preference_stats[name]
+                total = sum(stats.values())
+                wish_data.append([
+                    name,
+                    str(stats['first']),
+                    str(stats['second']),
+                    str(stats['third']),
+                    str(stats['fourth']),
+                    str(stats['fifth']),
+                    str(stats['none']),
+                    str(total)
+                ])
+            
+            wish_table = Table(wish_data, colWidths=[1.5*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch])
+            wish_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8F4FD')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2E4057')),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
+            ]))
+            
+            story.append(wish_table)
+            
+            # Zusammenfassung der Wünsche
+            story.append(Spacer(1, 15))
+            total_first = sum(stats['first'] for stats in preference_stats.values())
+            total_second = sum(stats['second'] for stats in preference_stats.values())
+            total_third = sum(stats['third'] for stats in preference_stats.values())
+            total_fourth = sum(stats['fourth'] for stats in preference_stats.values())
+            total_fifth = sum(stats['fifth'] for stats in preference_stats.values())
+            
+            summary_text = f"Gesamt-Wunscherfüllung: 🥇 {total_first} | 🥈 {total_second} | 🥉 {total_third} | 🏅 {total_fourth} | 🏅 {total_fifth}"
+            story.append(Paragraph(summary_text, styles['Normal']))
     
     # Footer
     story.append(Spacer(1, 30))
@@ -1396,7 +1533,8 @@ def main():
                     full_year_pdf = generate_pdf_report(
                         filtered_schedule, 
                         f"Vollständiger Jahresplan 2025 ({len(sorted_data)} Kalenderwochen)",
-                        sorted_data
+                        sorted_data,
+                        include_statistics=True  # Für Jahres-PDF Statistiken hinzufügen
                     )
                     st.download_button(
                         label="🗓️ Ganzes Jahr (PDF)",
