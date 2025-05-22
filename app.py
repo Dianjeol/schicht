@@ -353,7 +353,7 @@ def generate_fair_schedule(preferences, year=2025):
     # Initialisiere Zähler
     employees = list(preferences.keys())
     assignment_count = {emp: 0 for emp in employees}
-    preference_stats = {emp: {'first': 0, 'second': 0, 'third': 0, 'none': 0} for emp in employees}
+    preference_stats = {emp: {'first': 0, 'second': 0, 'third': 0, 'fourth': 0, 'fifth': 0, 'none': 0} for emp in employees}
     schedule = {}
     
     # Sortiere Arbeitstage für gleichmäßige Verteilung
@@ -379,6 +379,8 @@ def generate_fair_schedule(preferences, year=2025):
             first_choice_candidates = []
             second_choice_candidates = []
             third_choice_candidates = []
+            fourth_choice_candidates = []
+            fifth_choice_candidates = []
             no_preference_candidates = []
             
             for emp in best_employees:
@@ -390,6 +392,10 @@ def generate_fair_schedule(preferences, year=2025):
                         second_choice_candidates.append(emp)
                     elif priority_index == 2:  # 3. Wahl
                         third_choice_candidates.append(emp)
+                    elif priority_index == 3:  # 4. Wahl
+                        fourth_choice_candidates.append(emp)
+                    elif priority_index == 4:  # 5. Wahl
+                        fifth_choice_candidates.append(emp)
                 else:
                     no_preference_candidates.append(emp)
             
@@ -417,6 +423,20 @@ def generate_fair_schedule(preferences, year=2025):
                                     if preference_stats[emp]['third'] == min_third_wishes]
                 chosen_employee = random.choice(fairest_candidates)
             
+            # Dann 4. Wahl Kandidaten
+            elif fourth_choice_candidates:
+                min_fourth_wishes = min(preference_stats[emp]['fourth'] for emp in fourth_choice_candidates)
+                fairest_candidates = [emp for emp in fourth_choice_candidates 
+                                    if preference_stats[emp]['fourth'] == min_fourth_wishes]
+                chosen_employee = random.choice(fairest_candidates)
+            
+            # Dann 5. Wahl Kandidaten
+            elif fifth_choice_candidates:
+                min_fifth_wishes = min(preference_stats[emp]['fifth'] for emp in fifth_choice_candidates)
+                fairest_candidates = [emp for emp in fifth_choice_candidates 
+                                    if preference_stats[emp]['fifth'] == min_fifth_wishes]
+                chosen_employee = random.choice(fairest_candidates)
+            
             # Zuletzt die ohne Präferenz für diesen Tag
             else:
                 min_none_assignments = min(preference_stats[emp]['none'] for emp in no_preference_candidates)
@@ -436,6 +456,10 @@ def generate_fair_schedule(preferences, year=2025):
                 preference_stats[chosen_employee]['second'] += 1
             elif priority_index == 2:  # 3. Wahl
                 preference_stats[chosen_employee]['third'] += 1
+            elif priority_index == 3:  # 4. Wahl
+                preference_stats[chosen_employee]['fourth'] += 1
+            elif priority_index == 4:  # 5. Wahl
+                preference_stats[chosen_employee]['fifth'] += 1
         else:
             preference_stats[chosen_employee]['none'] += 1
         
@@ -447,7 +471,9 @@ def generate_fair_schedule(preferences, year=2025):
     for emp in employees:
         preference_score[emp] = (preference_stats[emp]['first'] + 
                                preference_stats[emp]['second'] + 
-                               preference_stats[emp]['third'])
+                               preference_stats[emp]['third'] +
+                               preference_stats[emp]['fourth'] +
+                               preference_stats[emp]['fifth'])
     
     return schedule, assignment_count, preference_score, preference_stats
 
@@ -550,12 +576,14 @@ def main():
             # Erstelle DataFrame für bessere Darstellung
             prefs_list = []
             for name, days in existing_prefs.items():
-                if len(days) >= 3:
+                if len(days) >= 5:
                     prefs_list.append({
                         "Name": name,
                         "🥇 1. Wahl": days[0],
                         "🥈 2. Wahl": days[1], 
-                        "🥉 3. Wahl": days[2]
+                        "🥉 3. Wahl": days[2],
+                        "🏅 4. Wahl": days[3],
+                        "🏅 5. Wahl": days[4]
                     })
                 else:
                     # Fallback für unvollständige Daten
@@ -563,7 +591,9 @@ def main():
                         "Name": name,
                         "🥇 1. Wahl": days[0] if len(days) > 0 else "",
                         "🥈 2. Wahl": days[1] if len(days) > 1 else "",
-                        "🥉 3. Wahl": days[2] if len(days) > 2 else ""
+                        "🥉 3. Wahl": days[2] if len(days) > 2 else "",
+                        "🏅 4. Wahl": days[3] if len(days) > 3 else "",
+                        "🏅 5. Wahl": days[4] if len(days) > 4 else ""
                     })
             
             prefs_df = pd.DataFrame(prefs_list)
@@ -587,7 +617,7 @@ def main():
             weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
             current_prefs = st.session_state.edit_prefs
             
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4, col5 = st.columns(5)
             
             with col1:
                 edit_first = st.selectbox(
@@ -615,6 +645,24 @@ def main():
                     key="edit_third_choice"
                 )
             
+            with col4:
+                available_fourth = [day for day in weekdays if day not in [edit_first, edit_second, edit_third]]
+                edit_fourth = st.selectbox(
+                    "🏅 4. Wahl:",
+                    available_fourth,
+                    index=available_fourth.index(current_prefs[3]) if len(current_prefs) > 3 and current_prefs[3] in available_fourth else 0,
+                    key="edit_fourth_choice"
+                )
+            
+            with col5:
+                available_fifth = [day for day in weekdays if day not in [edit_first, edit_second, edit_third, edit_fourth]]
+                edit_fifth = st.selectbox(
+                    "🏅 5. Wahl:",
+                    available_fifth,
+                    index=available_fifth.index(current_prefs[4]) if len(current_prefs) > 4 and current_prefs[4] in available_fifth else 0,
+                    key="edit_fifth_choice"
+                )
+            
             col_save, col_cancel = st.columns(2)
             
             with col_save:
@@ -624,7 +672,7 @@ def main():
                         delete_preference(st.session_state.edit_name)
                     
                     # Speichere neue/geänderte Person
-                    new_prefs = [edit_first, edit_second, edit_third]
+                    new_prefs = [edit_first, edit_second, edit_third, edit_fourth, edit_fifth]
                     save_preferences(edit_name, new_prefs)
                     
                     st.success(f"✅ Person **{edit_name}** wurde aktualisiert!")
@@ -660,10 +708,9 @@ def main():
         
         weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
         
-        st.markdown("**Geben Sie Ihre 3 Wunsch-Wochentage in Prioritätsreihenfolge an:**")
-        st.info("💡 **Wichtig**: Bitte wählen Sie alle 3 Prioritäten aus! Dies ermöglicht eine faire Schichtverteilung, auch wenn Ihr Erstwunsch nicht verfügbar ist.")
+        st.markdown("**Geben Sie Ihre 5 Wunsch-Wochentage in Prioritätsreihenfolge an:**")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             first_choice = st.selectbox(
@@ -676,10 +723,10 @@ def main():
         
         with col2:
             # Entferne die bereits gewählten Optionen
-            if first_choice == "Bitte wählen...":
-                available_second = weekdays
-            else:
-                available_second = [day for day in weekdays if day != first_choice]
+            chosen_days = []
+            if first_choice != "Bitte wählen...":
+                chosen_days.append(first_choice)
+            available_second = [day for day in weekdays if day not in chosen_days]
             
             second_choice = st.selectbox(
                 "🥈 2. Wahl:",
@@ -696,7 +743,6 @@ def main():
                 chosen_days.append(first_choice)
             if second_choice != "Bitte wählen...":
                 chosen_days.append(second_choice)
-            
             available_third = [day for day in weekdays if day not in chosen_days]
             
             third_choice = st.selectbox(
@@ -705,6 +751,46 @@ def main():
                 index=0,
                 help="Ihr drittliebster Wochentag",
                 key=f"third_choice_{st.session_state.form_reset_trigger}"
+            )
+        
+        with col4:
+            # Entferne bereits gewählte Optionen
+            chosen_days = []
+            if first_choice != "Bitte wählen...":
+                chosen_days.append(first_choice)
+            if second_choice != "Bitte wählen...":
+                chosen_days.append(second_choice)
+            if third_choice != "Bitte wählen...":
+                chosen_days.append(third_choice)
+            available_fourth = [day for day in weekdays if day not in chosen_days]
+            
+            fourth_choice = st.selectbox(
+                "🏅 4. Wahl:",
+                ["Bitte wählen..."] + available_fourth,
+                index=0,
+                help="Ihr viertliebster Wochentag",
+                key=f"fourth_choice_{st.session_state.form_reset_trigger}"
+            )
+        
+        with col5:
+            # Entferne bereits gewählte Optionen
+            chosen_days = []
+            if first_choice != "Bitte wählen...":
+                chosen_days.append(first_choice)
+            if second_choice != "Bitte wählen...":
+                chosen_days.append(second_choice)
+            if third_choice != "Bitte wählen...":
+                chosen_days.append(third_choice)
+            if fourth_choice != "Bitte wählen...":
+                chosen_days.append(fourth_choice)
+            available_fifth = [day for day in weekdays if day not in chosen_days]
+            
+            fifth_choice = st.selectbox(
+                "🏅 5. Wahl:",
+                ["Bitte wählen..."] + available_fifth,
+                index=0,
+                help="Ihr fünftliebster Wochentag",
+                key=f"fifth_choice_{st.session_state.form_reset_trigger}"
             )
         
         # Submit Button außerhalb des Forms
@@ -716,7 +802,9 @@ def main():
                 st.error("❌ Bitte geben Sie einen Namen ein.")
             elif (first_choice == "Bitte wählen..." or 
                   second_choice == "Bitte wählen..." or 
-                  third_choice == "Bitte wählen..."):
+                  third_choice == "Bitte wählen..." or
+                  fourth_choice == "Bitte wählen..." or
+                  fifth_choice == "Bitte wählen..."):
                 # Zeige genau was noch fehlt
                 missing = []
                 if first_choice == "Bitte wählen...":
@@ -725,22 +813,26 @@ def main():
                     missing.append("🥈 2. Wahl") 
                 if third_choice == "Bitte wählen...":
                     missing.append("🥉 3. Wahl")
+                if fourth_choice == "Bitte wählen...":
+                    missing.append("🏅 4. Wahl")
+                if fifth_choice == "Bitte wählen...":
+                    missing.append("🏅 5. Wahl")
                 
                 st.error(f"❌ Bitte vervollständigen Sie Ihre Auswahl!")
                 st.warning(f"💡 **Noch fehlend**: {' und '.join(missing)}")
-                st.info("ℹ️ **Hinweis**: Sie müssen alle 3 Prioritäten (1., 2. und 3. Wahl) auswählen, um eine faire Schichtverteilung zu ermöglichen.")
+                st.info("ℹ️ **Hinweis**: Sie müssen alle 5 Prioritäten (1., 2., 3., 4. und 5. Wahl) auswählen, um eine faire Schichtverteilung zu ermöglichen.")
             else:
                 # Prüfe auf Duplikate
-                choices = [first_choice, second_choice, third_choice]
-                if len(set(choices)) != 3:
-                    st.error("❌ Bitte wählen Sie 3 verschiedene Wochentage aus.")
+                choices = [first_choice, second_choice, third_choice, fourth_choice, fifth_choice]
+                if len(set(choices)) != 5:
+                    st.error("❌ Bitte wählen Sie 5 verschiedene Wochentage aus.")
                     st.warning(f"💡 **Problem**: Doppelte Auswahl erkannt. Jeder Tag darf nur einmal gewählt werden.")
                 else:
                     # Alles korrekt - speichern
-                    preferred_days = [first_choice, second_choice, third_choice]
+                    preferred_days = [first_choice, second_choice, third_choice, fourth_choice, fifth_choice]
                     save_preferences(name.strip(), preferred_days)
                     st.success(f"✅ Person **{name.strip()}** erfolgreich gespeichert! 🎉")
-                    st.success(f"🎯 **Ihre Prioritäten**: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice}")
+                    st.success(f"🎯 **Ihre Prioritäten**: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice} | 🏅 {fourth_choice} | 🏅 {fifth_choice}")
                     st.balloons()  # Kleine Feier! 🎈
                     # Reset das Formular durch Erhöhung des Triggers
                     st.session_state.form_reset_trigger += 1
@@ -808,7 +900,9 @@ def main():
                 "Name": name, 
                 "🥇 1. Wahl": days[0] if len(days) > 0 else "",
                 "🥈 2. Wahl": days[1] if len(days) > 1 else "",
-                "🥉 3. Wahl": days[2] if len(days) > 2 else ""
+                "🥉 3. Wahl": days[2] if len(days) > 2 else "",
+                "🏅 4. Wahl": days[3] if len(days) > 3 else "",
+                "🏅 5. Wahl": days[4] if len(days) > 4 else ""
             }
             for name, days in sorted(preferences.items())  # Alphabetische Sortierung
         ])
@@ -851,6 +945,8 @@ def main():
                         first_wishes = preference_stats[name]['first']
                         second_wishes = preference_stats[name]['second'] 
                         third_wishes = preference_stats[name]['third']
+                        fourth_wishes = preference_stats[name]['fourth']
+                        fifth_wishes = preference_stats[name]['fifth']
                         no_wishes = preference_stats[name]['none']
                         
                         detailed_stats.append({
@@ -858,6 +954,8 @@ def main():
                             "🥇 1. Wünsche": first_wishes,
                             "🥈 2. Wünsche": second_wishes,
                             "🥉 3. Wünsche": third_wishes,
+                            "🏅 4. Wünsche": fourth_wishes,
+                            "🏅 5. Wünsche": fifth_wishes,
                             "❌ Keine Wünsche": no_wishes,
                             "Gesamt": total_assignments
                         })
@@ -869,14 +967,20 @@ def main():
                     total_first = sum(preference_stats[emp]['first'] for emp in preferences.keys())
                     total_second = sum(preference_stats[emp]['second'] for emp in preferences.keys())
                     total_third = sum(preference_stats[emp]['third'] for emp in preferences.keys())
+                    total_fourth = sum(preference_stats[emp]['fourth'] for emp in preferences.keys())
+                    total_fifth = sum(preference_stats[emp]['fifth'] for emp in preferences.keys())
                     
-                    col_a, col_b, col_c = st.columns(3)
+                    col_a, col_b, col_c, col_d, col_e = st.columns(5)
                     with col_a:
-                        st.metric("🥇 Erste Wünsche", total_first)
+                        st.metric("🥇 1. Wünsche", total_first)
                     with col_b:
-                        st.metric("🥈 Zweite Wünsche", total_second)
+                        st.metric("🥈 2. Wünsche", total_second)
                     with col_c:
-                        st.metric("🥉 Dritte Wünsche", total_third)
+                        st.metric("🥉 3. Wünsche", total_third)
+                    with col_d:
+                        st.metric("🏅 4. Wünsche", total_fourth)
+                    with col_e:
+                        st.metric("🏅 5. Wünsche", total_fifth)
                 
                 st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
     
