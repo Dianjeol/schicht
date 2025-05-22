@@ -6,6 +6,12 @@ from datetime import datetime, timedelta
 import random
 from collections import defaultdict, Counter
 import sqlite3
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+import io
 
 # Seitenkonfiguration
 st.set_page_config(
@@ -104,6 +110,120 @@ def load_schedule():
     
     conn.close()
     return schedule
+
+# PDF-Generation-Funktionen
+def generate_pdf_report(schedule_data, title, weeks_data):
+    """Generiert ein PDF-Report des Schichtplans"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=30, bottomMargin=30)
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        alignment=1,  # Center
+        textColor=colors.HexColor('#2E4057')
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=20,
+        alignment=1,  # Center
+        textColor=colors.HexColor('#888888')
+    )
+    
+    # Content
+    story = []
+    
+    # Title
+    story.append(Paragraph("🌟 Schichtplaner 2025 🌟", title_style))
+    story.append(Paragraph(title, subtitle_style))
+    story.append(Paragraph(f"Erstellt am: {datetime.now().strftime('%d.%m.%Y um %H:%M Uhr')}", subtitle_style))
+    story.append(Spacer(1, 20))
+    
+    if weeks_data:
+        # Erstelle Tabellendaten
+        table_data = [["📅 Kalenderwoche", "🔵 Mo", "🟢 Di", "🟡 Mi", "🟠 Do", "🔴 Fr"]]
+        
+        for week_info in weeks_data:
+            table_data.append([
+                week_info["Kalenderwoche"],
+                week_info["Montag"] or "-",
+                week_info["Dienstag"] or "-", 
+                week_info["Mittwoch"] or "-",
+                week_info["Donnerstag"] or "-",
+                week_info["Freitag"] or "-"
+            ])
+        
+        # Erstelle Tabelle
+        table = Table(table_data, colWidths=[2.2*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1*inch])
+        table.setStyle(TableStyle([
+            # Header-Styling
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E4057')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            
+            # Content-Styling
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            
+            # Border-Styling
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')])
+        ]))
+        
+        story.append(table)
+    else:
+        story.append(Paragraph("Keine Daten für den gewählten Zeitraum verfügbar.", styles['Normal']))
+    
+    # Footer
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("💖 Erstellt mit Liebe und Streamlit-Magie 💖", subtitle_style))
+    
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+def get_current_and_next_weeks(schedule_data, num_weeks=4):
+    """Holt die aktuelle und nächsten n Kalenderwochen"""
+    current_date = datetime.now()
+    current_year, current_week, _ = current_date.isocalendar()
+    
+    target_weeks = []
+    for i in range(num_weeks):
+        week_num = current_week + i
+        year = current_year
+        
+        # Handle year rollover
+        if week_num > 52:
+            week_num = week_num - 52
+            year += 1
+        
+        target_weeks.append((year, week_num))
+    
+    # Filter schedule data for target weeks
+    filtered_data = {}
+    for date_str, employee in schedule_data.items():
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        year, week, _ = date_obj.isocalendar()
+        
+        if (year, week) in target_weeks:
+            filtered_data[date_str] = employee
+    
+    return filtered_data
 
 # Schichtplanungsalgorithmus
 def generate_fair_schedule(preferences, year=2025):
@@ -548,20 +668,23 @@ def main():
                 st.dataframe(list_df, use_container_width=True, hide_index=True)
             
             # Download-Optionen
+            st.subheader("💾 Download-Optionen")
+            
+            # CSV Downloads
             col1, col2 = st.columns(2)
             
             with col1:
+                st.markdown("**📄 CSV-Downloads:**")
                 # Kalenderwochen-CSV
                 weekly_csv = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button(
-                    label="📄 Kalenderwochen-Plan als CSV",
+                    label="📊 Kalenderwochen-Plan (CSV)",
                     data=weekly_csv,
                     file_name=f"schichtplan_kalenderwochen_2025.csv",
                     mime="text/csv"
                 )
-            
-            with col2:
-                # Listen-CSV (wie vorher)
+                
+                # Listen-CSV
                 if filtered_schedule:
                     list_data = []
                     for date_str, employee in sorted(filtered_schedule.items()):
@@ -575,11 +698,94 @@ def main():
                     list_df = pd.DataFrame(list_data)
                     list_csv = list_df.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button(
-                        label="📄 Listen-Plan als CSV",
+                        label="📋 Listen-Plan (CSV)",
                         data=list_csv,
                         file_name=f"schichtplan_liste_2025.csv",
                         mime="text/csv"
                     )
+            
+            with col2:
+                st.markdown("**📄 PDF-Downloads:**")
+                
+                # Ganzes Jahr PDF
+                try:
+                    full_year_pdf = generate_pdf_report(
+                        filtered_schedule, 
+                        f"Vollständiger Jahresplan 2025 ({len(sorted_data)} Kalenderwochen)",
+                        sorted_data
+                    )
+                    st.download_button(
+                        label="🗓️ Ganzes Jahr (PDF)",
+                        data=full_year_pdf.getvalue(),
+                        file_name=f"schichtplan_2025_komplett.pdf",
+                        mime="application/pdf"
+                    )
+                except Exception as e:
+                    st.error(f"PDF-Generierung fehlgeschlagen: {str(e)}")
+                
+                # Aktuelle + nächste 3 KW PDF
+                try:
+                    current_date = datetime.now()
+                    current_week = current_date.isocalendar()[1]
+                    
+                    # Hole original schedule (nicht gefiltert) für aktuelle Wochen
+                    original_schedule = load_schedule()
+                    current_weeks_schedule = get_current_and_next_weeks(original_schedule, 4)
+                    
+                    if current_weeks_schedule:
+                        # Baue weeks_data für aktuelle Wochen
+                        weekly_data_current = {}
+                        
+                        for date_str, employee in current_weeks_schedule.items():
+                            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                            year, week, weekday = date_obj.isocalendar()
+                            week_start, week_end = get_week_dates(year, week)
+                            kw_display = f"KW {week:02d}"
+                            date_range = f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}"
+                            kw_key = f"KW {week:02d}"
+                            
+                            if kw_key not in weekly_data_current:
+                                weekly_data_current[kw_key] = {
+                                    "Kalenderwoche": f"{kw_display} ({date_range})",
+                                    "Montag": "",
+                                    "Dienstag": "",
+                                    "Mittwoch": "",
+                                    "Donnerstag": "",
+                                    "Freitag": ""
+                                }
+                            
+                            weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
+                            if weekday in weekday_names:
+                                day_name = weekday_names[weekday]
+                                weekly_data_current[kw_key][day_name] = employee
+                        
+                        sorted_weeks_current = sorted(weekly_data_current.keys(), key=lambda x: int(x.split()[1]))
+                        sorted_data_current = [weekly_data_current[kw] for kw in sorted_weeks_current]
+                        
+                        current_weeks_pdf = generate_pdf_report(
+                            current_weeks_schedule,
+                            f"Aktuelle und nächste 3 Kalenderwochen (KW {current_week}-{current_week+3})",
+                            sorted_data_current
+                        )
+                        st.download_button(
+                            label="📅 Nächste 4 Wochen (PDF)",
+                            data=current_weeks_pdf.getvalue(),
+                            file_name=f"schichtplan_naechste_4kw.pdf",
+                            mime="application/pdf"
+                        )
+                    else:
+                        st.info("Keine Daten für die nächsten 4 Wochen verfügbar.")
+                        
+                except Exception as e:
+                    st.error(f"PDF-Generierung (4 Wochen) fehlgeschlagen: {str(e)}")
+                    
+                # Hilfsfunktion für PDF-Generation (falls noch nicht definiert)
+                if 'get_week_dates' not in globals():
+                    def get_week_dates(year, week):
+                        jan4 = datetime(year, 1, 4)
+                        week_start = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
+                        week_end = week_start + timedelta(days=4)
+                        return week_start, week_end
         else:
             st.info("Keine Einträge für die gewählten Filter gefunden.")
     
