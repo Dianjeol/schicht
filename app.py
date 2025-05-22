@@ -386,100 +386,106 @@ def main():
         
         st.divider()
         
-        # Eingabeformular
-        with st.form("preference_form"):
-            st.subheader("Neue Präferenz hinzufügen")
-            
-            name = st.text_input(
-                "Name des Mitarbeitenden:",
-                placeholder="z.B. Max Mustermann"
+        # Eingabeformular ohne Form (um Session State Problem zu vermeiden)
+        st.subheader("Neue Präferenz hinzufügen")
+        
+        # Initialisiere Session State für Formular-Reset
+        if 'form_reset_trigger' not in st.session_state:
+            st.session_state.form_reset_trigger = 0
+        
+        name = st.text_input(
+            "Name des Mitarbeitenden:",
+            placeholder="z.B. Max Mustermann",
+            key=f"name_input_{st.session_state.form_reset_trigger}"
+        )
+        
+        weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
+        
+        st.markdown("**Geben Sie Ihre 3 Wunsch-Wochentage in Prioritätsreihenfolge an:**")
+        st.info("💡 **Wichtig**: Bitte wählen Sie alle 3 Prioritäten aus! Dies ermöglicht eine faire Schichtverteilung, auch wenn Ihr Erstwunsch nicht verfügbar ist.")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            first_choice = st.selectbox(
+                "🥇 1. Wahl:",
+                ["Bitte wählen..."] + weekdays,
+                index=0,
+                help="Ihr absoluter Lieblings-Wochentag",
+                key=f"first_choice_{st.session_state.form_reset_trigger}"
             )
+        
+        with col2:
+            # Entferne die bereits gewählten Optionen
+            if first_choice == "Bitte wählen...":
+                available_second = weekdays
+            else:
+                available_second = [day for day in weekdays if day != first_choice]
             
-            weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
+            second_choice = st.selectbox(
+                "🥈 2. Wahl:",
+                ["Bitte wählen..."] + available_second,
+                index=0,
+                help="Ihr zweitliebster Wochentag",
+                key=f"second_choice_{st.session_state.form_reset_trigger}"
+            )
+        
+        with col3:
+            # Entferne bereits gewählte Optionen
+            chosen_days = []
+            if first_choice != "Bitte wählen...":
+                chosen_days.append(first_choice)
+            if second_choice != "Bitte wählen...":
+                chosen_days.append(second_choice)
             
-            st.markdown("**Geben Sie Ihre 3 Wunsch-Wochentage in Prioritätsreihenfolge an:**")
+            available_third = [day for day in weekdays if day not in chosen_days]
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                first_choice = st.selectbox(
-                    "🥇 1. Wahl:",
-                    ["Bitte wählen..."] + weekdays,
-                    index=0,
-                    help="Ihr absoluter Lieblings-Wochentag",
-                    key="first_choice_selectbox"
-                )
-            
-            with col2:
-                # Entferne die bereits gewählten Optionen
+            third_choice = st.selectbox(
+                "🥉 3. Wahl:",
+                ["Bitte wählen..."] + available_third,
+                index=0,
+                help="Ihr drittliebster Wochentag",
+                key=f"third_choice_{st.session_state.form_reset_trigger}"
+            )
+        
+        # Submit Button außerhalb des Forms
+        submitted = st.button("Präferenz speichern", type="primary", use_container_width=True)
+        
+        if submitted:
+            # Validierung der Eingaben
+            if not name.strip():
+                st.error("❌ Bitte geben Sie einen Namen ein.")
+            elif (first_choice == "Bitte wählen..." or 
+                  second_choice == "Bitte wählen..." or 
+                  third_choice == "Bitte wählen..."):
+                # Zeige genau was noch fehlt
+                missing = []
                 if first_choice == "Bitte wählen...":
-                    available_second = weekdays
+                    missing.append("🥇 1. Wahl")
+                if second_choice == "Bitte wählen...":
+                    missing.append("🥈 2. Wahl") 
+                if third_choice == "Bitte wählen...":
+                    missing.append("🥉 3. Wahl")
+                
+                st.error(f"❌ Bitte vervollständigen Sie Ihre Auswahl!")
+                st.warning(f"💡 **Noch fehlend**: {' und '.join(missing)}")
+                st.info("ℹ️ **Hinweis**: Sie müssen alle 3 Prioritäten (1., 2. und 3. Wahl) auswählen, um eine faire Schichtverteilung zu ermöglichen.")
+            else:
+                # Prüfe auf Duplikate
+                choices = [first_choice, second_choice, third_choice]
+                if len(set(choices)) != 3:
+                    st.error("❌ Bitte wählen Sie 3 verschiedene Wochentage aus.")
+                    st.warning(f"💡 **Problem**: Doppelte Auswahl erkannt. Jeder Tag darf nur einmal gewählt werden.")
                 else:
-                    available_second = [day for day in weekdays if day != first_choice]
-                
-                second_choice = st.selectbox(
-                    "🥈 2. Wahl:",
-                    ["Bitte wählen..."] + available_second,
-                    index=0,
-                    help="Ihr zweitliebster Wochentag",
-                    key="second_choice_selectbox"
-                )
-            
-            with col3:
-                # Entferne bereits gewählte Optionen
-                chosen_days = []
-                if first_choice != "Bitte wählen...":
-                    chosen_days.append(first_choice)
-                if second_choice != "Bitte wählen...":
-                    chosen_days.append(second_choice)
-                
-                available_third = [day for day in weekdays if day not in chosen_days]
-                
-                third_choice = st.selectbox(
-                    "🥉 3. Wahl:",
-                    ["Bitte wählen..."] + available_third,
-                    index=0,
-                    help="Ihr drittliebster Wochentag",
-                    key="third_choice_selectbox"
-                )
-            
-            submitted = st.form_submit_button("Präferenz speichern")
-            
-            if submitted:
-                # Debug-Informationen (temporär)
-                st.write("🔍 **Debug-Info:**")
-                st.write(f"- 1. Wahl: '{first_choice}' (Typ: {type(first_choice)})")
-                st.write(f"- 2. Wahl: '{second_choice}' (Typ: {type(second_choice)})")  
-                st.write(f"- 3. Wahl: '{third_choice}' (Typ: {type(third_choice)})")
-                st.write(f"- Name: '{name}' (leer: {not name.strip()})")
-                
-                # Prüfe jeden Wert einzeln
-                first_is_placeholder = (first_choice == "Bitte wählen...")
-                second_is_placeholder = (second_choice == "Bitte wählen...")
-                third_is_placeholder = (third_choice == "Bitte wählen...")
-                
-                st.write(f"- 1. Wahl ist Platzhalter: {first_is_placeholder}")
-                st.write(f"- 2. Wahl ist Platzhalter: {second_is_placeholder}")
-                st.write(f"- 3. Wahl ist Platzhalter: {third_is_placeholder}")
-                
-                if not name.strip():
-                    st.error("Bitte geben Sie einen Namen ein.")
-                elif first_is_placeholder or second_is_placeholder or third_is_placeholder:
-                    st.error("Bitte wählen Sie alle 3 Prioritäten aus.")
-                    st.write(f"❌ **Grund**: Eine oder mehrere Auswahlen sind noch auf 'Bitte wählen...'")
-                else:
-                    # Prüfe auf Duplikate
-                    choices = [first_choice, second_choice, third_choice]
-                    if len(set(choices)) != 3:
-                        st.error("Bitte wählen Sie 3 verschiedene Wochentage aus.")
-                        st.write(f"❌ **Grund**: Duplikate gefunden in {choices}")
-                    else:
-                        # Speichere in Prioritätsreihenfolge
-                        preferred_days = [first_choice, second_choice, third_choice]
-                        save_preferences(name.strip(), preferred_days)
-                        st.success(f"✅ Präferenz für {name} erfolgreich gespeichert! 🎉")
-                        st.success(f"✅ Gespeichert: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice}")
-                        st.rerun()
+                    # Alles korrekt - speichern
+                    preferred_days = [first_choice, second_choice, third_choice]
+                    save_preferences(name.strip(), preferred_days)
+                    st.success(f"✅ Präferenz für **{name.strip()}** erfolgreich gespeichert! 🎉")
+                    st.success(f"🎯 **Ihre Prioritäten**: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice}")
+                    st.balloons()  # Kleine Feier! 🎈
+                    # Reset das Formular durch Erhöhung des Triggers
+                    st.session_state.form_reset_trigger += 1
+                    st.rerun()
     
     elif mode == "Schichtplan generieren":
         st.header("⚙️ Schichtplan generieren")
