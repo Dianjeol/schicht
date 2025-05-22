@@ -335,19 +335,20 @@ def get_current_and_next_weeks(schedule_data, num_weeks=4):
 # Schichtplanungsalgorithmus
 def generate_fair_schedule(preferences, year=2025):
     """
-    Generiert einen fairen Jahresschichtplan mit optimaler Prioritätenverteilung:
-    1. Möglichst gleich viele Schichten für alle
-    2. Möglichst gleich viele erste/zweite/dritte Wünsche für alle
+    Generiert einen fairen Jahresschichtplan mit User-für-User Rotation:
+    1. Jeder Mitarbeiter kommt nacheinander dran (Round-Robin)
+    2. Jedem wird der bestmögliche verfügbare Tag zugeteilt (vorzugsweise 1. Wunsch)
+    3. Garantiert gleichmäßige Verteilung und maximale Wunscherfüllung
     """
     # Erstelle Liste aller Arbeitstage im Jahr (Mo-Fr)
     start_date = datetime(year, 1, 1)
     end_date = datetime(year, 12, 31)
     
-    workdays = []
+    available_days = []
     current_date = start_date
     while current_date <= end_date:
         if current_date.weekday() < 5:  # Montag = 0, Freitag = 4
-            workdays.append(current_date)
+            available_days.append(current_date)
         current_date += timedelta(days=1)
     
     # Initialisiere Zähler
@@ -356,115 +357,62 @@ def generate_fair_schedule(preferences, year=2025):
     preference_stats = {emp: {'first': 0, 'second': 0, 'third': 0, 'fourth': 0, 'fifth': 0, 'none': 0} for emp in employees}
     schedule = {}
     
-    # Sortiere Arbeitstage für gleichmäßige Verteilung
-    random.shuffle(workdays)
+    # Wochentag-Namen für Zuordnung
+    weekday_names = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
     
-    for date in workdays:
-        weekday_name = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][date.weekday()]
+    # Round-Robin durch alle Mitarbeiter
+    employee_index = 0
+    
+    while available_days:
+        current_employee = employees[employee_index]
         
-        # Finde optimalen Mitarbeiter basierend auf Fairness-Prioritäten
-        best_employees = employees[:]
+        # Finde den besten verfügbaren Tag für diesen Mitarbeiter
+        best_day = None
+        best_priority = 6  # Schlechter als alle Prioritäten (1-5)
         
-        # Priorität 1: Mitarbeiter mit wenigsten Schichten
-        min_assignments = min(assignment_count[emp] for emp in employees)
-        best_employees = [emp for emp in best_employees if assignment_count[emp] == min_assignments]
-        
-        if len(best_employees) == 1:
-            chosen_employee = best_employees[0]
-        else:
-            # Priorität 2: Unter denen mit wenigsten Schichten, 
-            # bevorzuge die mit diesem Wochentag in ihren Präferenzen
+        # Durchsuche verfügbare Tage nach bestem Match
+        for day in available_days:
+            weekday_name = weekday_names[day.weekday()]
             
-            # Kategorisiere Mitarbeiter nach ihrer Präferenz für diesen Tag
-            first_choice_candidates = []
-            second_choice_candidates = []
-            third_choice_candidates = []
-            fourth_choice_candidates = []
-            fifth_choice_candidates = []
-            no_preference_candidates = []
-            
-            for emp in best_employees:
-                if weekday_name in preferences[emp]:
-                    priority_index = preferences[emp].index(weekday_name)
-                    if priority_index == 0:  # 1. Wahl
-                        first_choice_candidates.append(emp)
-                    elif priority_index == 1:  # 2. Wahl
-                        second_choice_candidates.append(emp)
-                    elif priority_index == 2:  # 3. Wahl
-                        third_choice_candidates.append(emp)
-                    elif priority_index == 3:  # 4. Wahl
-                        fourth_choice_candidates.append(emp)
-                    elif priority_index == 4:  # 5. Wahl
-                        fifth_choice_candidates.append(emp)
-                else:
-                    no_preference_candidates.append(emp)
-            
-            # Wähle nach Präferenz-Priorität und Fairness
-            chosen_employee = None
-            
-            # Prüfe erst 1. Wahl Kandidaten
-            if first_choice_candidates:
-                min_first_wishes = min(preference_stats[emp]['first'] for emp in first_choice_candidates)
-                fairest_candidates = [emp for emp in first_choice_candidates 
-                                    if preference_stats[emp]['first'] == min_first_wishes]
-                chosen_employee = random.choice(fairest_candidates)
-            
-            # Dann 2. Wahl Kandidaten
-            elif second_choice_candidates:
-                min_second_wishes = min(preference_stats[emp]['second'] for emp in second_choice_candidates)
-                fairest_candidates = [emp for emp in second_choice_candidates 
-                                    if preference_stats[emp]['second'] == min_second_wishes]
-                chosen_employee = random.choice(fairest_candidates)
-            
-            # Dann 3. Wahl Kandidaten
-            elif third_choice_candidates:
-                min_third_wishes = min(preference_stats[emp]['third'] for emp in third_choice_candidates)
-                fairest_candidates = [emp for emp in third_choice_candidates 
-                                    if preference_stats[emp]['third'] == min_third_wishes]
-                chosen_employee = random.choice(fairest_candidates)
-            
-            # Dann 4. Wahl Kandidaten
-            elif fourth_choice_candidates:
-                min_fourth_wishes = min(preference_stats[emp]['fourth'] for emp in fourth_choice_candidates)
-                fairest_candidates = [emp for emp in fourth_choice_candidates 
-                                    if preference_stats[emp]['fourth'] == min_fourth_wishes]
-                chosen_employee = random.choice(fairest_candidates)
-            
-            # Dann 5. Wahl Kandidaten
-            elif fifth_choice_candidates:
-                min_fifth_wishes = min(preference_stats[emp]['fifth'] for emp in fifth_choice_candidates)
-                fairest_candidates = [emp for emp in fifth_choice_candidates 
-                                    if preference_stats[emp]['fifth'] == min_fifth_wishes]
-                chosen_employee = random.choice(fairest_candidates)
-            
-            # Zuletzt die ohne Präferenz für diesen Tag
+            if weekday_name in preferences[current_employee]:
+                # Tag ist in den Präferenzen - bestimme Priorität
+                priority = preferences[current_employee].index(weekday_name) + 1  # 1-5
+                if priority < best_priority:
+                    best_priority = priority
+                    best_day = day
             else:
-                min_none_assignments = min(preference_stats[emp]['none'] for emp in no_preference_candidates)
-                fairest_candidates = [emp for emp in no_preference_candidates 
-                                    if preference_stats[emp]['none'] == min_none_assignments]
-                chosen_employee = random.choice(fairest_candidates)
+                # Tag ist nicht in Präferenzen - nur nehmen wenn nichts besseres da ist
+                if best_priority == 6:
+                    best_day = day
         
-        # Aktualisiere Zähler
-        assignment_count[chosen_employee] += 1
+        # Falls kein Tag gefunden (sollte nicht passieren), nimm ersten verfügbaren
+        if best_day is None:
+            best_day = available_days[0]
+        
+        # Weise Tag zu
+        schedule[best_day.strftime('%Y-%m-%d')] = current_employee
+        available_days.remove(best_day)
+        assignment_count[current_employee] += 1
         
         # Aktualisiere Präferenz-Statistiken
-        if weekday_name in preferences[chosen_employee]:
-            priority_index = preferences[chosen_employee].index(weekday_name)
+        weekday_name = weekday_names[best_day.weekday()]
+        if weekday_name in preferences[current_employee]:
+            priority_index = preferences[current_employee].index(weekday_name)
             if priority_index == 0:  # 1. Wahl
-                preference_stats[chosen_employee]['first'] += 1
+                preference_stats[current_employee]['first'] += 1
             elif priority_index == 1:  # 2. Wahl
-                preference_stats[chosen_employee]['second'] += 1
+                preference_stats[current_employee]['second'] += 1
             elif priority_index == 2:  # 3. Wahl
-                preference_stats[chosen_employee]['third'] += 1
+                preference_stats[current_employee]['third'] += 1
             elif priority_index == 3:  # 4. Wahl
-                preference_stats[chosen_employee]['fourth'] += 1
+                preference_stats[current_employee]['fourth'] += 1
             elif priority_index == 4:  # 5. Wahl
-                preference_stats[chosen_employee]['fifth'] += 1
+                preference_stats[current_employee]['fifth'] += 1
         else:
-            preference_stats[chosen_employee]['none'] += 1
+            preference_stats[current_employee]['none'] += 1
         
-        # Speichere Zuweisung
-        schedule[date.strftime('%Y-%m-%d')] = chosen_employee
+        # Nächster Mitarbeiter (Round-Robin)
+        employee_index = (employee_index + 1) % len(employees)
     
     # Berechne traditionelle preference_score für Kompatibilität mit vorhandener UI
     preference_score = {}
