@@ -865,6 +865,18 @@ def main():
             font-size: 1rem;
         }
         
+        /* Additional specific targeting for radio caption */
+        .stRadio label {
+            color: black !important;
+        }
+        
+        /* Target the radio group label specifically */
+        .stRadio > label,
+        .stRadio > div[role="radiogroup"] > label,
+        .stRadio [data-testid="stMarkdownContainer"] {
+            color: black !important;
+        }
+        
         .stRadio > div {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
