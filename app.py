@@ -301,7 +301,7 @@ def cleanup_expired_sessions():
 
 # PDF-Generation-Funktionen
 def calculate_statistics_from_schedule(schedule_data):
-    """Berechnet Statistiken aus vorhandenen Schichtplan-Daten"""
+    """Berechnet Statistiken aus vorhandenen Schichtplan-Daten (ohne Feiertage)"""
     if not schedule_data:
         return {}, {}
     
@@ -314,14 +314,19 @@ def calculate_statistics_from_schedule(schedule_data):
     
     weekday_names = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
     
-    # Durchlaufe alle Schichten und zähle
+    # Durchlaufe alle Schichten und zähle (aber schließe Feiertage aus)
     for date_str, employee in schedule_data.items():
-        # Zähle Schichten
-        assignment_count[employee] += 1
-        
-        # Bestimme Wochentag
         try:
             date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            
+            # Überspringe Feiertage bei der Statistik-Berechnung
+            if is_holiday_berlin(date_obj):
+                continue
+                
+            # Zähle Schichten
+            assignment_count[employee] += 1
+            
+            # Bestimme Wochentag
             weekday_name = weekday_names[date_obj.weekday()]
             
             # Prüfe Wunscherfüllung
@@ -1710,7 +1715,11 @@ def main():
                 weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
                 if weekday in weekday_names:
                     day_name = weekday_names[weekday]
-                    weekly_data_current[kw_key][day_name] = employee
+                    # Prüfe ob es ein Feiertag ist
+                    if is_holiday_berlin(date_obj):
+                        weekly_data_current[kw_key][day_name] = "🎉 Feiertag"
+                    else:
+                        weekly_data_current[kw_key][day_name] = employee
             
             # Sortiere nach Kalenderwoche und Jahr
             sorted_weeks_current = sorted(weekly_data_current.keys(), key=lambda x: weekly_data_current[x]["sort_key"])
@@ -1818,7 +1827,11 @@ def main():
                 
                 if weekday in weekday_names:
                     day_name = weekday_names[weekday]
-                    weekly_data[kw_key][day_name] = employee
+                    # Prüfe ob es ein Feiertag ist
+                    if is_holiday_berlin(date_obj):
+                        weekly_data[kw_key][day_name] = "🎉 Feiertag"
+                    else:
+                        weekly_data[kw_key][day_name] = employee
             
             # Sortiere nach Kalenderwoche und Jahr
             sorted_weeks = sorted(weekly_data.keys(), key=lambda x: weekly_data[x]["sort_key"])
@@ -1869,10 +1882,16 @@ def main():
                 list_data = []
                 for date_str, employee in sorted(filtered_schedule.items()):
                     date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                    # Prüfe ob es ein Feiertag ist
+                    if is_holiday_berlin(date_obj):
+                        display_employee = "🎉 Feiertag"
+                    else:
+                        display_employee = employee
+                        
                     list_data.append({
                         "Datum": date_obj.strftime('%d.%m.%Y'),
                         "Wochentag": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()],
-                        "Mitarbeiter": employee
+                        "Mitarbeiter": display_employee
                     })
                 
                 list_df = pd.DataFrame(list_data)
@@ -1900,10 +1919,16 @@ def main():
                     list_data = []
                     for date_str, employee in sorted(filtered_schedule.items()):
                         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                        # Prüfe ob es ein Feiertag ist
+                        if is_holiday_berlin(date_obj):
+                            display_employee = "🎉 Feiertag"
+                        else:
+                            display_employee = employee
+                            
                         list_data.append({
                             "Datum": date_obj.strftime('%d.%m.%Y'),
                             "Wochentag": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()],
-                            "Mitarbeiter": employee
+                            "Mitarbeiter": display_employee
                         })
                     
                     list_df = pd.DataFrame(list_data)
@@ -1984,7 +2009,11 @@ def main():
                             weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
                             if weekday in weekday_names:
                                 day_name = weekday_names[weekday]
-                                weekly_data_current[kw_key][day_name] = employee
+                                # Prüfe ob es ein Feiertag ist
+                                if is_holiday_berlin(date_obj):
+                                    weekly_data_current[kw_key][day_name] = "🎉 Feiertag"
+                                else:
+                                    weekly_data_current[kw_key][day_name] = employee
                         
                         sorted_weeks_current = sorted(weekly_data_current.keys(), key=lambda x: int(x.split()[1]))
                         sorted_data_current = [weekly_data_current[kw] for kw in sorted_weeks_current]
