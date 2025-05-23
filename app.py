@@ -471,7 +471,7 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
             
             # Wunscherfüllung
             story.append(Paragraph("Detaillierte Wunscherfüllung:", styles['Heading3']))
-            wish_data = [["Name", "🥇 1. Wünsche", "🥈 2. Wünsche", "🥉 3. Wünsche", "🏅 4. Wünsche", "🏅 5. Wünsche", "❌ Keine", "Gesamt"]]
+            wish_data = [["Name", "🥇 1. Wünsche", "🥈 2. Wünsche", "🥉 3. Wünsche", "🏅 4. Wünsche", "🏅 5. Wünsche", "Gesamt"]]
             
             # Sortiere alphabetisch
             for name in sorted(preference_stats.keys()):
@@ -484,11 +484,10 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
                     str(stats['third']),
                     str(stats['fourth']),
                     str(stats['fifth']),
-                    str(stats['none']),
                     str(total)
                 ])
             
-            wish_table = Table(wish_data, colWidths=[1.5*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch])
+            wish_table = Table(wish_data, colWidths=[1.8*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.9*inch])
             wish_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8F4FD')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2E4057')),
@@ -1427,7 +1426,6 @@ def main():
                         "🥉 3. Wünsche": third_wishes,
                         "🏅 4. Wünsche": fourth_wishes,
                         "🏅 5. Wünsche": fifth_wishes,
-                        "❌ Keine Wünsche": no_wishes,
                         "Gesamt": total_assignments
                     })
                 
