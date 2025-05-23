@@ -19,7 +19,7 @@ import holidays
 # Seitenkonfiguration
 st.set_page_config(
     page_title="🗓️ Schichtplaner Pro",
-    page_icon="❤️",
+    page_icon="🗓️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -519,7 +519,7 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
     
     # Footer
     story.append(Spacer(1, 30))
-    story.append(Paragraph("Schichtplaner - Automatisch generiert", subtitle_style))
+    story.append(Paragraph("Schichtplaner", subtitle_style))
     
     # Build PDF
     doc.build(story)
@@ -2494,7 +2494,7 @@ def main():
                 </div>
             </div>
             <div style="font-size: 0.9rem; opacity: 0.8;">
-                Moderne Lösung für effiziente Personalplanung | Automatisch generiert
+                Intelligente Schichtplanung für moderne Teams
             </div>
         </div>
     """, unsafe_allow_html=True)
