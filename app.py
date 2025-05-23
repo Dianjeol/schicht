@@ -749,8 +749,6 @@ def main():
     )
     
     if mode == "Personen eingeben":
-        st.header("👥 Mitarbeiterpersonen eingeben")
-        
         # Lade vorhandene Personen
         existing_prefs = load_preferences()
         
