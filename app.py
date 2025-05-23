@@ -860,6 +860,14 @@ def main():
             font-size: 1rem;
         }
         
+        /* Sidebar Radio Caption Styling */
+        .stRadio > div > label {
+            color: white !important;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+        
         .stRadio > div {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
@@ -1030,13 +1038,6 @@ def main():
         </div>
     """, unsafe_allow_html=True)
     st.markdown("*Berücksichtigt Feiertage für Berlin*")
-    
-    # Logout-Button in der Sidebar
-    with st.sidebar:
-        if st.button("🚪 Logout", type="secondary"):
-            for key in st.session_state.keys():
-                del st.session_state[key]
-            st.rerun()
     
     # Sidebar für Navigation
     st.sidebar.title("Navigation")
