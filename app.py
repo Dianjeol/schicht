@@ -517,9 +517,6 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
             summary_text = f"Gesamt-Wunscherfüllung: 🥇 {total_first} | 🥈 {total_second} | 🥉 {total_third} | 🏅 {total_fourth} | 🏅 {total_fifth}"
             story.append(Paragraph(summary_text, styles['Normal']))
     
-    # Footer
-    story.append(Spacer(1, 30))
-    story.append(Paragraph("Schichtplaner", subtitle_style))
     
     # Build PDF
     doc.build(story)
