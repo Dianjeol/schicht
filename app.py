@@ -2483,9 +2483,6 @@ def main():
                     <div style="font-size: 1rem; opacity: 0.9;">Intelligente Schichtplanung • Automatisiert • Benutzerfreundlich</div>
                 </div>
             </div>
-            <div style="font-size: 0.9rem; opacity: 0.8;">
-                Intelligente Schichtplanung für moderne Teams
-            </div>
         </div>
     """, unsafe_allow_html=True)
 
