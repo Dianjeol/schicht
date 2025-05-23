@@ -17,7 +17,7 @@ import uuid
 
 # Seitenkonfiguration
 st.set_page_config(
-    page_title="Schichtplaner 2025",
+    page_title="Schichtplaner",
     page_icon="📅",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -374,7 +374,7 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
     story = []
     
     # Title
-    story.append(Paragraph("🌟 Schichtplaner 2025 🌟", title_style))
+    story.append(Paragraph("🌟 Schichtplaner 🌟", title_style))
     story.append(Paragraph(title, subtitle_style))
     story.append(Paragraph(f"Erstellt am: {datetime.now().strftime('%d.%m.%Y um %H:%M Uhr')}", subtitle_style))
     story.append(Spacer(1, 20))
@@ -515,7 +515,7 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
     
     # Footer
     story.append(Spacer(1, 30))
-    story.append(Paragraph("Schichtplaner 2025 - Automatisch generiert", subtitle_style))
+    story.append(Paragraph("Schichtplaner - Automatisch generiert", subtitle_style))
     
     # Build PDF
     doc.build(story)
@@ -578,6 +578,8 @@ def generate_fair_schedule(preferences, start_date=None, end_date=None, year=202
         if current_date.weekday() < 5:  # Montag = 0, Freitag = 4
             available_days.append(current_date)
         current_date += timedelta(days=1)
+    
+    
     
     # Initialisiere Zähler
     employees = list(preferences.keys())
@@ -648,6 +650,7 @@ def generate_fair_schedule(preferences, start_date=None, end_date=None, year=202
         # Nächster Mitarbeiter (Round-Robin)
         employee_index = (employee_index + 1) % len(employees)
     
+    
     # Berechne traditionelle preference_score für Kompatibilität mit vorhandener UI
     preference_score = {}
     for emp in employees:
@@ -691,7 +694,7 @@ def check_password():
 
     if "password_correct" not in st.session_state:
         # Erstes Mal - zeige Passwort-Eingabe
-        st.markdown("### 🔐 Schichtplaner 2025 - Zugang")
+        st.markdown("### 🔐 Schichtplaner - Zugang")
         st.markdown("*Bitte geben Sie das Passwort ein:*")
         st.text_input(
             "Passwort", 
@@ -705,7 +708,7 @@ def check_password():
         return False
     elif not st.session_state["password_correct"]:
         # Passwort war falsch
-        st.markdown("### 🔐 Schichtplaner 2025 - Zugang")
+        st.markdown("### 🔐 Schichtplaner - Zugang")
         st.markdown("*Bitte geben Sie das Passwort ein:*")
         st.text_input(
             "Passwort", 
@@ -728,7 +731,7 @@ def main():
     if not check_password():
         return
     
-    st.title("📅 Schichtplaner 2025")
+    st.title("📅 Schichtplaner")
     st.markdown("*Effiziente Schichtplanung für Teams*")
     
     # Logout-Button in der Sidebar
@@ -1270,126 +1273,18 @@ def main():
         # Zeitraum-Auswahl
         st.subheader("🗓️ Zeitraum für Schichtplan-Generierung")
         
-        time_period = st.radio(
-            "Wählen Sie den gewünschten Zeitraum:",
-            [
-                "📅 Gesamtes Kalenderjahr 2025",
-                "🌙 1 Monat", 
-                "🌿 3 Monate",
-                "⏳ 1 Jahr ab heute",
-                "🎯 Benutzerdefiniert (genaue Daten)"
-            ]
-        )
+        # Automatischer Zeitraum: Ab heute für 1 Jahr
+        today = datetime.now().date()
+        schedule_start_date = datetime.combine(today, datetime.min.time())
+        schedule_end_date = schedule_start_date + timedelta(days=365)
         
-        # Variablen für Start- und Enddatum
-        schedule_start_date = None
-        schedule_end_date = None
+        # Berechne Anzahl Werktage
+        total_days = (schedule_end_date - schedule_start_date).days + 1
+        weekdays = sum(1 for i in range(total_days) 
+                     if (schedule_start_date + timedelta(days=i)).weekday() < 5)
         
-        if time_period == "📅 Gesamtes Kalenderjahr 2025":
-            schedule_start_date = datetime(2025, 1, 1)
-            schedule_end_date = datetime(2025, 12, 31)
-            st.info(f"📆 **Zeitraum**: 01.01.2025 - 31.12.2025 (Ganzes Jahr)")
-            
-        elif time_period == "🌙 1 Monat":
-            col_month1, col_month2 = st.columns(2)
-            with col_month1:
-                selected_year = st.selectbox(
-                    "Jahr:",
-                    [2024, 2025, 2026],
-                    index=1,  # Default 2025
-                    key="month_year"
-                )
-            with col_month2:
-                selected_month = st.selectbox(
-                    "Monat:",
-                    list(range(1, 13)),
-                    format_func=lambda x: f"{x:02d} - {datetime(2025, x, 1).strftime('%B')}",
-                    key="selected_month"
-                )
-            
-            schedule_start_date = datetime(selected_year, selected_month, 1)
-            # Letzter Tag des Monats
-            if selected_month == 12:
-                schedule_end_date = datetime(selected_year + 1, 1, 1) - timedelta(days=1)
-            else:
-                schedule_end_date = datetime(selected_year, selected_month + 1, 1) - timedelta(days=1)
-            
-            st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}")
-            
-        elif time_period == "🌿 3 Monate":
-            col_3m1, col_3m2 = st.columns(2)
-            with col_3m1:
-                start_year = st.selectbox(
-                    "Jahr:",
-                    [2024, 2025, 2026],
-                    index=1,  # Default 2025
-                    key="three_month_year"
-                )
-            with col_3m2:
-                start_month = st.selectbox(
-                    "Startmonat:",
-                    list(range(1, 13)),
-                    format_func=lambda x: f"{x:02d} - {datetime(2025, x, 1).strftime('%B')}",
-                    key="three_month_start"
-                )
-            
-            schedule_start_date = datetime(start_year, start_month, 1)
-            # 3 Monate später
-            end_month = start_month + 2
-            end_year = start_year
-            if end_month > 12:
-                end_month -= 12
-                end_year += 1
-            
-            # Letzter Tag des dritten Monats
-            if end_month == 12:
-                schedule_end_date = datetime(end_year + 1, 1, 1) - timedelta(days=1)
-            else:
-                schedule_end_date = datetime(end_year, end_month + 1, 1) - timedelta(days=1)
-            
-            st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (3 Monate)")
-            
-        elif time_period == "⏳ 1 Jahr ab heute":
-            today = datetime.now().date()
-            schedule_start_date = datetime.combine(today, datetime.min.time())
-            schedule_end_date = schedule_start_date + timedelta(days=365)
-            st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Jahr ab heute)")
-            
-        elif time_period == "🎯 Benutzerdefiniert (genaue Daten)":
-            col_custom1, col_custom2 = st.columns(2)
-            with col_custom1:
-                custom_start = st.date_input(
-                    "Startdatum:",
-                    value=datetime(2025, 1, 1).date(),
-                    min_value=datetime(2024, 1, 1).date(),
-                    max_value=datetime(2030, 12, 31).date(),
-                    key="custom_start_date"
-                )
-            with col_custom2:
-                custom_end = st.date_input(
-                    "Enddatum:",
-                    value=datetime(2025, 12, 31).date(),
-                    min_value=datetime(2024, 1, 1).date(),
-                    max_value=datetime(2030, 12, 31).date(),
-                    key="custom_end_date"
-                )
-            
-            if custom_start and custom_end:
-                if custom_start <= custom_end:
-                    schedule_start_date = datetime.combine(custom_start, datetime.min.time())
-                    schedule_end_date = datetime.combine(custom_end, datetime.min.time())
-                    
-                    # Berechne Anzahl Werktage
-                    total_days = (schedule_end_date - schedule_start_date).days + 1
-                    weekdays = sum(1 for i in range(total_days) 
-                                 if (schedule_start_date + timedelta(days=i)).weekday() < 5)
-                    
-                    st.info(f"📆 **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}")
-                    st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
-                else:
-                    st.error("❌ Das Enddatum muss nach dem Startdatum liegen!")
-                    schedule_start_date = None
-                    schedule_end_date = None
+        st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Jahr ab heute)")
+        st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
         
         st.divider()
         
@@ -1412,89 +1307,86 @@ def main():
         
         # Generierung starten
         if st.button("🎯 Schichtplan generieren", type="primary"):
-            if schedule_start_date is None or schedule_end_date is None:
-                st.error("❌ Bitte wählen Sie einen gültigen Zeitraum aus!")
-            else:
-                with st.spinner("Generiere optimalen Schichtplan..."):
-                    schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(
-                        preferences, 
-                        start_date=schedule_start_date, 
-                        end_date=schedule_end_date
-                    )
-                    save_schedule(schedule)
+            with st.spinner("Generiere optimalen Schichtplan..."):
+                schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(
+                    preferences, 
+                    start_date=schedule_start_date, 
+                    end_date=schedule_end_date
+                )
+                save_schedule(schedule)
+            
+                # Berechne Anzahl generierter Schichten
+                num_shifts = len(schedule)
+                period_text = f"{schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}"
                 
-                    # Berechne Anzahl generierter Schichten
-                    num_shifts = len(schedule)
-                    period_text = f"{schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}"
-                    
-                    st.success(f"✅ Schichtplan erfolgreich generiert!")
-                    st.info(f"📅 **Zeitraum**: {period_text} | **Schichten**: {num_shifts}")
+                st.success(f"✅ Schichtplan erfolgreich generiert!")
+                st.info(f"📅 **Zeitraum**: {period_text} | **Schichten**: {num_shifts}")
+            
+            # Statistiken anzeigen
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📊 Schichtverteilung")
+                stats_df = pd.DataFrame([
+                    {"Name": name, "Anzahl Schichten": count}
+                    for name, count in assignment_count.items()
+                ]).sort_values("Anzahl Schichten", ascending=False)
+                st.dataframe(stats_df, use_container_width=True)
                 
-                # Statistiken anzeigen
-                col1, col2 = st.columns(2)
+                # Zeige Verteilungsstatistik
+                min_shifts = min(assignment_count.values())
+                max_shifts = max(assignment_count.values())
+                st.metric("Fairness", f"Spreizung: {max_shifts - min_shifts} Schichten", 
+                         help="Unterschied zwischen Person mit meisten und wenigsten Schichten")
+            
+            with col2:
+                st.subheader("🎯 Detaillierte Wunscherfüllung")
                 
-                with col1:
-                    st.subheader("📊 Schichtverteilung")
-                    stats_df = pd.DataFrame([
-                        {"Name": name, "Anzahl Schichten": count}
-                        for name, count in assignment_count.items()
-                    ]).sort_values("Anzahl Schichten", ascending=False)
-                    st.dataframe(stats_df, use_container_width=True)
+                # Erstelle detaillierte Wunsch-Statistik
+                detailed_stats = []
+                for name in sorted(preferences.keys()):
+                    total_assignments = assignment_count[name]
+                    first_wishes = preference_stats[name]['first']
+                    second_wishes = preference_stats[name]['second'] 
+                    third_wishes = preference_stats[name]['third']
+                    fourth_wishes = preference_stats[name]['fourth']
+                    fifth_wishes = preference_stats[name]['fifth']
+                    no_wishes = preference_stats[name]['none']
                     
-                    # Zeige Verteilungsstatistik
-                    min_shifts = min(assignment_count.values())
-                    max_shifts = max(assignment_count.values())
-                    st.metric("Fairness", f"Spreizung: {max_shifts - min_shifts} Schichten", 
-                             help="Unterschied zwischen Person mit meisten und wenigsten Schichten")
+                    detailed_stats.append({
+                        "Name": name,
+                        "🥇 1. Wünsche": first_wishes,
+                        "🥈 2. Wünsche": second_wishes,
+                        "🥉 3. Wünsche": third_wishes,
+                        "🏅 4. Wünsche": fourth_wishes,
+                        "🏅 5. Wünsche": fifth_wishes,
+                        "❌ Keine Wünsche": no_wishes,
+                        "Gesamt": total_assignments
+                    })
                 
-                with col2:
-                    st.subheader("🎯 Detaillierte Wunscherfüllung")
-                    
-                    # Erstelle detaillierte Wunsch-Statistik
-                    detailed_stats = []
-                    for name in sorted(preferences.keys()):
-                        total_assignments = assignment_count[name]
-                        first_wishes = preference_stats[name]['first']
-                        second_wishes = preference_stats[name]['second'] 
-                        third_wishes = preference_stats[name]['third']
-                        fourth_wishes = preference_stats[name]['fourth']
-                        fifth_wishes = preference_stats[name]['fifth']
-                        no_wishes = preference_stats[name]['none']
-                        
-                        detailed_stats.append({
-                            "Name": name,
-                            "🥇 1. Wünsche": first_wishes,
-                            "🥈 2. Wünsche": second_wishes,
-                            "🥉 3. Wünsche": third_wishes,
-                            "🏅 4. Wünsche": fourth_wishes,
-                            "🏅 5. Wünsche": fifth_wishes,
-                            "❌ Keine Wünsche": no_wishes,
-                            "Gesamt": total_assignments
-                        })
-                    
-                    pref_df = pd.DataFrame(detailed_stats)
-                    st.dataframe(pref_df, use_container_width=True)
-                    
-                    # Zeige Fairness-Metriken für Wünsche
-                    total_first = sum(preference_stats[emp]['first'] for emp in preferences.keys())
-                    total_second = sum(preference_stats[emp]['second'] for emp in preferences.keys())
-                    total_third = sum(preference_stats[emp]['third'] for emp in preferences.keys())
-                    total_fourth = sum(preference_stats[emp]['fourth'] for emp in preferences.keys())
-                    total_fifth = sum(preference_stats[emp]['fifth'] for emp in preferences.keys())
-                    
-                    col_a, col_b, col_c, col_d, col_e = st.columns(5)
-                    with col_a:
-                        st.metric("🥇 1. Wünsche", total_first)
-                    with col_b:
-                        st.metric("🥈 2. Wünsche", total_second)
-                    with col_c:
-                        st.metric("🥉 3. Wünsche", total_third)
-                    with col_d:
-                        st.metric("🏅 4. Wünsche", total_fourth)
-                    with col_e:
-                        st.metric("🏅 5. Wünsche", total_fifth)
+                pref_df = pd.DataFrame(detailed_stats)
+                st.dataframe(pref_df, use_container_width=True)
                 
-                st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
+                # Zeige Fairness-Metriken für Wünsche
+                total_first = sum(preference_stats[emp]['first'] for emp in preferences.keys())
+                total_second = sum(preference_stats[emp]['second'] for emp in preferences.keys())
+                total_third = sum(preference_stats[emp]['third'] for emp in preferences.keys())
+                total_fourth = sum(preference_stats[emp]['fourth'] for emp in preferences.keys())
+                total_fifth = sum(preference_stats[emp]['fifth'] for emp in preferences.keys())
+                
+                col_a, col_b, col_c, col_d, col_e = st.columns(5)
+                with col_a:
+                    st.metric("🥇 1. Wünsche", total_first)
+                with col_b:
+                    st.metric("🥈 2. Wünsche", total_second)
+                with col_c:
+                    st.metric("🥉 3. Wünsche", total_third)
+                with col_d:
+                    st.metric("🏅 4. Wünsche", total_fourth)
+                with col_e:
+                    st.metric("🏅 5. Wünsche", total_fifth)
+            
+            st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
     
     elif mode == "Plan anzeigen":
         st.header("📋 Generierter Schichtplan")
@@ -1676,18 +1568,29 @@ def main():
             with col2:
                 st.markdown("**📄 PDF-Downloads:**")
                 
-                # Ganzes Jahr PDF
+                # Gesamter Zeitraum PDF
                 try:
-                    full_year_pdf = generate_pdf_report(
+                    # Bestimme Start- und Enddatum aus dem filtered_schedule
+                    if filtered_schedule:
+                        dates = [datetime.strptime(date_str, '%Y-%m-%d') for date_str in filtered_schedule.keys()]
+                        start_date = min(dates)
+                        end_date = max(dates)
+                        period_text = f"{start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
+                        filename_period = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+                    else:
+                        period_text = "Zeitraum"
+                        filename_period = "zeitraum"
+                    
+                    full_period_pdf = generate_pdf_report(
                         filtered_schedule, 
-                        f"Vollständiger Jahresplan 2025 ({len(sorted_data)} Kalenderwochen)",
+                        f"Schichtplan {period_text} ({len(sorted_data)} Kalenderwochen)",
                         sorted_data,
-                        include_statistics=True  # Für Jahres-PDF Statistiken hinzufügen
+                        include_statistics=True  # Für Zeitraum-PDF Statistiken hinzufügen
                     )
                     st.download_button(
-                        label="🗓️ Ganzes Jahr (PDF)",
-                        data=full_year_pdf.getvalue(),
-                        file_name=f"schichtplan_2025_komplett.pdf",
+                        label="🗓️ Gesamter Zeitraum (PDF)",
+                        data=full_period_pdf.getvalue(),
+                        file_name=f"schichtplan_{filename_period}.pdf",
                         mime="application/pdf"
                     )
                 except Exception as e:
@@ -1764,7 +1667,7 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666; padding: 20px;'>
-            <small>📅 Schichtplaner 2025 | Effiziente Schichtplanung</small>
+            <small>📅 Schichtplaner | Effiziente Schichtplanung</small>
         </div>
         """, 
         unsafe_allow_html=True
