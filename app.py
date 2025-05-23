@@ -18,8 +18,8 @@ import holidays
 
 # Seitenkonfiguration
 st.set_page_config(
-    page_title="Schichtplaner",
-    page_icon="📅",
+    page_title="AWO Schichtplaner",
+    page_icon="❤️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -737,7 +737,306 @@ def main():
     if not check_password():
         return
     
-    st.title("📅 Schichtplaner")
+    # AWO Corporate Design CSS
+    st.markdown("""
+        <style>
+        /* AWO Corporate Design CSS */
+        @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap');
+        
+        /* Globale Variablen für AWO Farben */
+        :root {
+            --awo-red: #e2001A;
+            --awo-yellow: #fecd1b;
+            --awo-blue: #009ee0;
+            --awo-orange: #ec7405;
+            --awo-green: #79b530;
+            --awo-white: #ffffff;
+            --awo-gray: #f5f5f5;
+            --awo-dark: #333333;
+        }
+        
+        /* Hauptcontainer und Body */
+        .main .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            max-width: none;
+        }
+        
+        /* AWO Logo Container - obere rechte Ecke */
+        .awo-logo-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            background: var(--awo-white);
+            padding: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .awo-logo {
+            height: 40px;
+            width: auto;
+        }
+        
+        /* Haupttitel Styling */
+        .main-title {
+            background: linear-gradient(135deg, var(--awo-red), var(--awo-orange));
+            color: var(--awo-white);
+            padding: 2rem 2rem 1.5rem 2rem;
+            margin: -1rem -2rem 2rem -2rem;
+            border-radius: 0 0 20px 20px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(226, 0, 26, 0.3);
+        }
+        
+        .main-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            font-weight: 400;
+            margin-top: 0.5rem;
+        }
+        
+        /* AWO Button Styles */
+        .stButton > button {
+            background: linear-gradient(135deg, var(--awo-red), #c71717);
+            color: var(--awo-white);
+            border: none;
+            border-radius: 25px;
+            padding: 0.6rem 2rem;
+            font-weight: 700;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 4px 15px rgba(226, 0, 26, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .stButton > button:hover {
+            background: linear-gradient(135deg, #c71717, var(--awo-red));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(226, 0, 26, 0.4);
+        }
+        
+        /* Sekundäre Buttons (type="secondary") */
+        .stButton > button[kind="secondary"] {
+            background: linear-gradient(135deg, var(--awo-blue), #0088c7);
+            color: var(--awo-white);
+        }
+        
+        .stButton > button[kind="secondary"]:hover {
+            background: linear-gradient(135deg, #0088c7, var(--awo-blue));
+        }
+        
+        /* Sidebar Styling */
+        .css-1d391kg {
+            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
+        }
+        
+        .css-17eq0hr {
+            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
+        }
+        
+        .sidebar .sidebar-content {
+            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
+        }
+        
+        /* Sidebar Title */
+        .css-1v3fvcr h1 {
+            color: var(--awo-white);
+            font-family: Arial, sans-serif;
+            font-weight: 700;
+        }
+        
+        /* Sidebar Radio Buttons */
+        .stRadio > label {
+            color: var(--awo-white);
+            font-weight: 600;
+            font-family: Arial, sans-serif;
+        }
+        
+        .stRadio > div {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        
+        /* Subheader Styling */
+        .css-10trblm {
+            color: var(--awo-red);
+            font-family: Arial, sans-serif;
+            font-weight: 700;
+            border-bottom: 3px solid var(--awo-yellow);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Info Boxes */
+        .stInfo {
+            background: linear-gradient(135deg, rgba(0, 158, 224, 0.1), rgba(121, 181, 48, 0.1));
+            border-left: 5px solid var(--awo-blue);
+            border-radius: 10px;
+        }
+        
+        .stSuccess {
+            background: linear-gradient(135deg, rgba(121, 181, 48, 0.1), rgba(254, 205, 27, 0.1));
+            border-left: 5px solid var(--awo-green);
+            border-radius: 10px;
+        }
+        
+        .stWarning {
+            background: linear-gradient(135deg, rgba(254, 205, 27, 0.1), rgba(236, 116, 5, 0.1));
+            border-left: 5px solid var(--awo-yellow);
+            border-radius: 10px;
+        }
+        
+        .stError {
+            background: linear-gradient(135deg, rgba(226, 0, 26, 0.1), rgba(236, 116, 5, 0.1));
+            border-left: 5px solid var(--awo-red);
+            border-radius: 10px;
+        }
+        
+        /* DataFrames */
+        .stDataFrame {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Selectboxes und Inputs */
+        .stSelectbox > div > div {
+            border-radius: 10px;
+            border: 2px solid var(--awo-gray);
+        }
+        
+        .stSelectbox > div > div:focus-within {
+            border-color: var(--awo-blue);
+            box-shadow: 0 0 10px rgba(0, 158, 224, 0.3);
+        }
+        
+        .stTextInput > div > div {
+            border-radius: 10px;
+            border: 2px solid var(--awo-gray);
+        }
+        
+        .stTextInput > div > div:focus-within {
+            border-color: var(--awo-blue);
+            box-shadow: 0 0 10px rgba(0, 158, 224, 0.3);
+        }
+        
+        /* Metrics */
+        .metric-container {
+            background: linear-gradient(135deg, var(--awo-white), var(--awo-gray));
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid var(--awo-red);
+        }
+        
+        /* Download Buttons */
+        .stDownloadButton > button {
+            background: linear-gradient(135deg, var(--awo-green), #6ba028);
+            color: var(--awo-white);
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            box-shadow: 0 3px 12px rgba(121, 181, 48, 0.3);
+        }
+        
+        .stDownloadButton > button:hover {
+            background: linear-gradient(135deg, #6ba028, var(--awo-green));
+            transform: translateY(-1px);
+        }
+        
+        /* Divider */
+        hr {
+            border: none;
+            height: 3px;
+            background: linear-gradient(90deg, var(--awo-red), var(--awo-yellow), var(--awo-blue), var(--awo-orange), var(--awo-green));
+            border-radius: 5px;
+            margin: 2rem 0;
+        }
+        
+        /* Footer */
+        .awo-footer {
+            background: linear-gradient(135deg, var(--awo-red), var(--awo-orange));
+            color: var(--awo-white);
+            text-align: center;
+            padding: 2rem;
+            margin: 2rem -2rem -2rem -2rem;
+            border-radius: 20px 20px 0 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* Toggle Switches */
+        .stCheckbox > label {
+            color: var(--awo-dark);
+            font-weight: 600;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2rem;
+                padding: 1.5rem 1rem 1rem 1rem;
+            }
+            
+            .awo-logo-container {
+                top: 0.5rem;
+                right: 0.5rem;
+            }
+            
+            .awo-logo {
+                height: 30px;
+            }
+        }
+        
+        /* Accessibility Improvements */
+        button:focus {
+            outline: 3px solid var(--awo-yellow);
+            outline-offset: 2px;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--awo-gray);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, var(--awo-orange), var(--awo-red));
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # AWO Logo (Platzhalter - ersetzen Sie dies durch das echte AWO-Logo)
+    st.markdown("""
+        <div class="awo-logo-container">
+            <div style="display: flex; align-items: center; font-family: Arial, sans-serif; font-weight: 700; color: #e2001A;">
+                <span style="font-size: 24px; margin-right: 8px;">❤️</span>
+                <span style="font-size: 18px;">AWO</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Haupttitel mit AWO Design
+    st.markdown("""
+        <div class="main-title">
+            ❤️ AWO Schichtplaner
+            <div class="main-subtitle">Effiziente Schichtplanung für Teams - Fair • Digital • Sozial</div>
+        </div>
+    """, unsafe_allow_html=True)
     st.markdown("*Effiziente Schichtplanung für Teams - Berücksichtigt Feiertage für Berlin*")
     
     # Logout-Button in der Sidebar
@@ -2183,16 +2482,21 @@ def main():
         else:
             st.info("Keine Einträge für die gewählten Filter gefunden.")
     
-    # Footer
-    st.divider()
-    st.markdown(
-        """
-        <div style='text-align: center; color: #666; padding: 20px;'>
-            <small>📅 Schichtplaner | Effiziente Schichtplanung</small>
+    # AWO Footer
+    st.markdown("""
+        <div class="awo-footer">
+            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                <span style="font-size: 2rem; margin-right: 1rem;">❤️</span>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">AWO Schichtplaner</div>
+                    <div style="font-size: 1rem; opacity: 0.9;">Effiziente Schichtplanung • Fair • Digital • Sozial</div>
+                </div>
+            </div>
+            <div style="font-size: 0.9rem; opacity: 0.8;">
+                Powered by AWO Corporate Design | Automatisch generiert
+            </div>
         </div>
-        """, 
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
 def is_holiday_berlin(date_obj):
     """Prüft ob ein Datum ein gesetzlicher Feiertag in Berlin ist"""
