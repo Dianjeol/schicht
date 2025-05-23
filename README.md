@@ -1,140 +1,124 @@
-# 🌟✨ Schichtplaner 2025 ✨🌟  
-*Mit Liebe für faire Teams entwickelt* 💝
+# Schichtplaner
 
-> 🎭 **Live erleben:** [schicht.streamlit.app](https://schicht.streamlit.app/) 🚀  
-> Ein zauberhafter Schichtplaner für harmonische Teams! 🤗
+**Ein intelligenter Schichtplaner für faire Arbeitsverteilung**
 
-Dieser liebevoll gestaltete Schichtplaner bringt Fairness und Freude in Ihren Arbeitsalltag. Mitarbeitende können ihre Herzenswünsche für Wochentage eingeben, und unser magischer Algorithmus erstellt einen perfekt ausbalancierten Jahresschichtplan! ✨💫
+[Live Demo](https://schicht.streamlit.app/)
 
-## 🎨💖 Magische Features
+## Übersicht
 
-- 🎪 **Intuitive Magie**: Jeder Mitarbeiter wählt liebevoll 3 Herzenswünsche für Wochentage
-- 🧚‍♀️ **Fairness-Zauber**: Unser Algorithm zaubert perfekte Balance zwischen allen Wünschen  
-- 🎭 **Wunderschöne Anzeige**: Elegant gefilterte Tabellen mit CSV-Export-Liebe
-- 💾 **Ewige Erinnerungen**: SQLite-Datenbank bewahrt alle Träume sicher auf
-- 📱💻 **Überall Zuhause**: Responsive Design für alle Ihre liebsten Geräte
-- 🌈 **Deutscher Charme**: Vollständig in deutscher Sprache mit Herz
+Der Schichtplaner automatisiert die faire Verteilung von Arbeitsschichten basierend auf Mitarbeiterpräferenzen. Das System berücksichtigt Wochentag-Präferenzen, Urlaubszeiten und gesetzliche Feiertage in Berlin.
 
-## 🎼✨ Die Symphonie der Fairness
+## Features
 
-1. 💝 **Wünsche sammeln**: Jeder Mitarbeiter teilt seine 3 Lieblings-Wochentage mit uns
-2. 🎯 **Zauber entfalten**: Unser Algorithmus komponiert einen harmonischen Jahresplan (Mo-Fr Werktage)
-3. 📈 **Wunder betrachten**: Bezaubernde Statistiken zeigen Verteilung und Glücksmomente
-4. 📅 **Träume verwirklichen**: Filterable Traumübersicht mit liebevollem CSV-Export
+- **Präferenz-basierte Planung**: Mitarbeiter wählen bis zu 3 bevorzugte Wochentage
+- **Faire Verteilung**: Algorithmus sorgt für ausgeglichene Schichtverteilung
+- **Feiertags-Integration**: Automatische Berücksichtigung Berliner Feiertage
+- **Flexibler Export**: CSV und PDF Export für verschiedene Zeiträume
+- **Responsive Design**: Optimiert für Desktop und Mobile
+- **Datenbeständigkeit**: SQLite-Datenbank für lokale Datenspeicherung
 
-### 🧙‍♀️ Der Fairness-Zauberspruch
+## Installation
 
-- 🤲 Jeder Mitarbeiter erhält etwa gleich viele Schichten mit Liebe
-- 💖 Herzenswünsche bekommen magische Priorität
-- 🎲 Natürliche Zufälligkeit sorgt für lebendige Variation  
-- 🌸 Gleichmäßige Verteilung blüht über das ganze Jahr
+### Voraussetzungen
+- Python 3.8+
+- pip
 
-## 🏠💕 Lokales Wunderland errichten
-
-### 🎀 Was Sie benötigen:
-- 🐍 Python 3.8+ (mit viel Liebe installiert)
-- 📦 pip (Ihr treuer Paketbote)
-
-### 🎪 Magisches Setup:
+### Setup
 ```bash
-# Das wundervolle Repository zu sich holen
 git clone https://github.com/Dianjeol/schicht.git
 cd schicht
-
-# Alle magischen Dependencies einladen
 pip install -r requirements.txt
-
-# Die Träume zum Leben erwecken
 streamlit run app.py
 ```
 
-✨ **Voilà!** Ihre lokale Magie erwacht unter `http://localhost:8501` zum Leben! 🌟
+Die Anwendung ist anschließend unter `http://localhost:8501` erreichbar.
 
-## ☁️🌈 In die Cloud schweben
+## Deployment
 
-### 1. 🎋 Repository-Liebe teilen
-- 💝 Forken Sie dieses Herzstück zu Ihrem GitHub-Account
-- 🎁 Oder laden Sie alle Dateien in Ihr eigenes Lieblings-Repository
+### Streamlit Cloud
+1. Repository auf GitHub forken oder hochladen
+2. Bei [streamlit.io/cloud](https://streamlit.io/cloud) anmelden
+3. "New app" wählen und Repository verbinden
+4. Hauptdatei: `app.py`
+5. Deployment starten
 
-### 2. 🎭 Streamlit Cloud Zauber
-1. ✨ Schweben Sie zu [streamlit.io/cloud](https://streamlit.io/cloud)
-2. 🤗 Verbinden Sie sich liebevoll mit Ihrem GitHub-Account  
-3. 🎪 Klicken Sie auf "New app" mit Vorfreude
-4. 💖 Wählen Sie Ihr Repository und Branch mit Bedacht
-5. 🎯 Hauptdatei: `app.py` (unser Herzstück!)
-6. 🚀 Klicken Sie auf "Deploy" und lassen Sie die Magie geschehen
+Die App ist automatisch unter `https://[app-name].streamlit.app` verfügbar.
 
-### 3. 🎉 Träume werden wahr!
-Ihre wunderschöne App tanzt automatisch unter `https://[app-name].streamlit.app`! 🌟
-
-> 💫 **Psst...** Unsere Live-App wartet bereits auf Sie: [schicht.streamlit.app](https://schicht.streamlit.app/) 💕
-
-## 🎨📂 Unser liebevolles Zuhause
+## Projektstruktur
 
 ```
-schicht/ 🏡
-├── app.py              # 💖 Das schlagende Herz unserer App
-├── requirements.txt    # 📋 Alle magischen Python-Zutaten
-├── .gitignore         # 🙈 Geheimnisse, die Git nicht sehen soll
-└── README.md          # 📖 Diese wundervolle Geschichte (Sie sind hier! 👋)
+schicht/
+├── app.py              # Hauptanwendung
+├── requirements.txt    # Python-Dependencies
+├── .gitignore         # Git-Ausschlüsse
+└── README.md          # Dokumentation
 ```
 
-## 🔬💫 Die Magie hinter den Kulissen
+## Technologie-Stack
 
-- 🎭 **Bühne**: Streamlit (unser wunderschönes Theater)
-- 🐍 **Dirigent**: Python mit SQLite (die harmonische Symphonie)  
-- 💾 **Gedächtnis**: SQLite (automatisch entstehende Erinnerungsschatzkiste)
-- 🧮 **Zaubertrick**: Gewichtetes Scoring-System für liebevolle Fairness
+- **Frontend**: Streamlit
+- **Backend**: Python mit SQLite
+- **Datenbank**: SQLite (automatisch erstellt)
+- **Feiertage**: holidays Library für Berlin
+- **Export**: pandas (CSV), reportlab (PDF)
 
-### 🏛️✨ Die Schatzkammer der Daten
+## Datenbank-Schema
 
 ```sql
--- 💝 Herzenswünsche der Mitarbeitenden
+-- Mitarbeiterpräferenzen
 CREATE TABLE preferences (
-    id INTEGER PRIMARY KEY,          -- 🔑 Jeder Wunsch ist einzigartig
-    name TEXT UNIQUE NOT NULL,       -- 👤 Der liebevolle Name
-    preferred_days TEXT NOT NULL     -- 💖 Die 3 Herzenswünsche
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    preferred_days TEXT NOT NULL
 );
 
--- 📅 Die zauberhaften Schichtpläne  
+-- Schichtpläne
 CREATE TABLE schedules (
-    id INTEGER PRIMARY KEY,              -- 🎯 Jede Schicht ist besonders
-    date TEXT NOT NULL,                  -- 📆 Das wichtige Datum
-    employee_name TEXT NOT NULL,         -- 👋 Wer darf heute glänzen
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- ⏰ Wann die Magie entstand
+    id INTEGER PRIMARY KEY,
+    date TEXT NOT NULL,
+    employee_name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Nicht-Verfügbarkeiten
+CREATE TABLE unavailability (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    date TEXT,
+    weekday TEXT,
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-## 🎨🔮 Weitere Wunder möglich!
+## Algorithmus
 
-- 👥 **Mehr Seelen**: Teamgröße in `generate_fair_schedule()` liebevoll anpassen
-- 🌅 **Wochenend-Zauber**: Samstag & Sonntag in die Magie einbeziehen
-- 🌟 **Mehrfach-Glück**: Mehrere Schichten pro Tag für extra Freude
-- 🏖️ **Traum-Auszeiten**: Urlaub und Abwesenheiten sanft berücksichtigen
+Der Schichtplanungsalgorithmus funktioniert nach folgenden Prinzipien:
 
-## 🤗💕 Wir sind für Sie da!
+1. **Round-Robin Rotation**: Alle Mitarbeiter kommen gleichmäßig zum Zug
+2. **Präferenz-Optimierung**: Bevorzugte Wochentage werden priorisiert
+3. **Verfügbarkeits-Prüfung**: Urlaub und Feiertage werden ausgeschlossen
+4. **Fairness-Garantie**: Gleichmäßige Verteilung über alle Mitarbeiter
 
-Haben Sie Fragen, Wünsche oder brauchen Sie eine warme Umarmung?
-1. 📚 Besuchen Sie die [Streamlit Cloud Dokumentation](https://docs.streamlit.io/streamlit-cloud)
-2. 💌 Erstellen Sie ein liebevolles Issue in diesem Repository
-3. 🫂 Kontaktieren Sie uns - wir sind immer für Sie da!
+## Erweiterungsmöglichkeiten
 
-## 📜✨ Lizenz mit Herz
+- Anpassung der Teamgröße in `generate_fair_schedule()`
+- Wochenend-Schichten (Samstag/Sonntag)
+- Mehrfach-Schichten pro Tag
+- Integration weiterer Bundesland-Feiertage
+- E-Mail-Benachrichtigungen
+- API-Integration für externe Systeme
 
-MIT License - Teilen Sie diese Liebe frei mit der ganzen Welt! 🌍💖
+## Support
+
+- [Streamlit Cloud Dokumentation](https://docs.streamlit.io/streamlit-cloud)
+- Issues in diesem Repository erstellen
+
+## Lizenz
+
+MIT License - siehe LICENSE Datei für Details.
 
 ---
 
-<div align="center">
-
-### 🌟 **Entwickelt mit unendlicher Liebe, Streamlit-Magie und einer Prise Träume** 🌟
-
-*Von Herzen für Teams, die Fairness leben* 💝
-
-🎭 **[Erleben Sie die Magie live!](https://schicht.streamlit.app/)** 🎭
-
----
-
-*"Wo Fairness auf Freude trifft, entstehen die schönsten Schichtpläne."* ✨
-
-</div> 
+**Entwickelt für effiziente Schichtplanung mit Python und Streamlit** 

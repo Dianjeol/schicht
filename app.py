@@ -14,6 +14,7 @@ from reportlab.lib.units import inch
 import io
 import hashlib
 import uuid
+import holidays
 
 # Seitenkonfiguration
 st.set_page_config(
@@ -2130,59 +2131,8 @@ def main():
 
 def is_holiday_berlin(date_obj):
     """Prüft ob ein Datum ein gesetzlicher Feiertag in Berlin ist"""
-    year = date_obj.year
-    month = date_obj.month
-    day = date_obj.day
-    
-    # Feste Feiertage in Berlin
-    fixed_holidays = [
-        (1, 1),    # Neujahr
-        (3, 8),    # Frauentag (seit 2019 in Berlin)
-        (5, 1),    # Tag der Arbeit
-        (10, 3),   # Tag der Deutschen Einheit
-        (12, 25),  # 1. Weihnachtstag
-        (12, 26),  # 2. Weihnachtstag
-    ]
-    
-    if (month, day) in fixed_holidays:
-        # Frauentag nur ab 2019
-        if month == 3 and day == 8 and year < 2019:
-            return False
-        return True
-    
-    # Variable Feiertage (Ostern-basiert) - vereinfachte Berechnung für häufige Jahre
-    # Für eine vollständige Lösung sollte eine Bibliothek wie 'holidays' verwendet werden
-    easter_dates = {
-        2024: (3, 31),  # Ostersonntag 2024
-        2025: (4, 20),  # Ostersonntag 2025
-        2026: (4, 5),   # Ostersonntag 2026
-        2027: (3, 28),  # Ostersonntag 2027
-        2028: (4, 16),  # Ostersonntag 2028
-        2029: (4, 1),   # Ostersonntag 2029
-        2030: (4, 21),  # Ostersonntag 2030
-        2031: (4, 13),  # Ostersonntag 2031
-        2032: (3, 28),  # Ostersonntag 2032
-        2033: (4, 17),  # Ostersonntag 2033
-        2034: (4, 9),   # Ostersonntag 2034
-        2035: (3, 25),  # Ostersonntag 2035
-    }
-    
-    if year in easter_dates:
-        easter_month, easter_day = easter_dates[year]
-        easter_date = datetime(year, easter_month, easter_day).date()
-        
-        # Berechne variable Feiertage basierend auf Ostersonntag
-        karfreitag = easter_date - timedelta(days=2)
-        ostermontag = easter_date + timedelta(days=1)
-        christi_himmelfahrt = easter_date + timedelta(days=39)
-        pfingstmontag = easter_date + timedelta(days=50)
-        
-        variable_holidays = [karfreitag, ostermontag, christi_himmelfahrt, pfingstmontag]
-        
-        if date_obj in variable_holidays:
-            return True
-    
-    return False
+    berlin_holidays = holidays.Germany(state='BE', years=date_obj.year)
+    return date_obj in berlin_holidays
 
 def count_working_days(start_date, end_date):
     """Zählt Werktage (Mo-Fr) ohne Feiertage in Berlin im gegebenen Zeitraum"""
