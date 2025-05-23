@@ -1718,7 +1718,7 @@ def main():
                     day_name = weekday_names[weekday]
                     # Prüfe ob es ein Feiertag ist
                     if is_holiday_berlin(date_obj):
-                        weekly_data_current[kw_key][day_name] = "🎉 Feiertag"
+                        weekly_data_current[kw_key][day_name] = "—"
                     else:
                         weekly_data_current[kw_key][day_name] = employee
             
@@ -1830,7 +1830,7 @@ def main():
                     day_name = weekday_names[weekday]
                     # Prüfe ob es ein Feiertag ist
                     if is_holiday_berlin(date_obj):
-                        weekly_data[kw_key][day_name] = "🎉 Feiertag"
+                        weekly_data[kw_key][day_name] = "—"
                     else:
                         weekly_data[kw_key][day_name] = employee
             
@@ -1885,7 +1885,7 @@ def main():
                     date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                     # Prüfe ob es ein Feiertag ist
                     if is_holiday_berlin(date_obj):
-                        display_employee = "🎉 Feiertag"
+                        display_employee = "—"
                     else:
                         display_employee = employee
                         
@@ -1922,7 +1922,7 @@ def main():
                         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                         # Prüfe ob es ein Feiertag ist
                         if is_holiday_berlin(date_obj):
-                            display_employee = "🎉 Feiertag"
+                            display_employee = "—"
                         else:
                             display_employee = employee
                             
@@ -2012,7 +2012,7 @@ def main():
                                 day_name = weekday_names[weekday]
                                 # Prüfe ob es ein Feiertag ist
                                 if is_holiday_berlin(date_obj):
-                                    weekly_data_current[kw_key][day_name] = "🎉 Feiertag"
+                                    weekly_data_current[kw_key][day_name] = "—"
                                 else:
                                     weekly_data_current[kw_key][day_name] = employee
                         
