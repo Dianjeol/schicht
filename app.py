@@ -1021,20 +1021,11 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # AWO Logo (Platzhalter - ersetzen Sie dies durch das echte AWO-Logo)
-    st.markdown("""
-        <div class="awo-logo-container">
-            <div style="display: flex; align-items: center; font-family: Arial, sans-serif; font-weight: 700; color: #e2001A;">
-                <span style="font-size: 24px; margin-right: 8px;">❤️</span>
-                <span style="font-size: 18px;">AWO</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
     
-    # Haupttitel mit AWO Design
+    # Haupttitel mit modernem Design
     st.markdown("""
         <div class="main-title">
-            ❤️ 🗓️ Schichtplaner Pro
+            🗓️ Schichtplaner Pro
             <div class="main-subtitle">Effiziente Schichtplanung für Teams - Fair • Digital • Sozial</div>
         </div>
     """, unsafe_allow_html=True)
@@ -2487,7 +2478,6 @@ def main():
     st.markdown("""
         <div class="modern-footer">
             <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                <span style="font-size: 2rem; margin-right: 1rem;">❤️</span>
                 <div>
                     <div style="font-size: 1.5rem; font-weight: 700;">🗓️ Schichtplaner Pro</div>
                     <div style="font-size: 1rem; opacity: 0.9;">Intelligente Schichtplanung • Automatisiert • Benutzerfreundlich</div>
