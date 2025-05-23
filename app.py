@@ -859,7 +859,7 @@ def main():
         
         /* Sidebar Radio Caption Styling */
         .stRadio > div > label {
-            color: white !important;
+            color: black !important;
             font-family: 'Inter', sans-serif;
             font-weight: 500;
             font-size: 1rem;
