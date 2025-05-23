@@ -1402,7 +1402,7 @@ def main():
         with col1:
             month_filter = st.selectbox(
                 "Monat auswählen:",
-                ["Alle"] + [f"{i:02d} - {datetime(2025, i, 1).strftime('%B')}" for i in range(1, 13)]
+                ["Alle"] + [f"{i:02d} - {datetime(datetime.now().year, i, 1).strftime('%B')}" for i in range(1, 13)]
             )
         
         with col2:
@@ -1429,16 +1429,7 @@ def main():
             filtered_schedule[date_str] = employee
         
         if filtered_schedule:
-            # Hilfsfunktion um das Datum einer Kalenderwoche zu berechnen
-            def get_week_dates(year, week):
-                # Erster Tag der Woche (Montag)
-                jan4 = datetime(year, 1, 4)
-                week_start = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
-                # Letzter Arbeitstag der Woche (Freitag)
-                week_end = week_start + timedelta(days=4)
-                return week_start, week_end
-            
-            # Erstelle Kalenderwochen-Tabelle
+            # Erstelle Kalenderwochen-Tabelle basierend auf tatsächlichen Daten
             weekly_data = {}
             
             for date_str, employee in filtered_schedule.items():
@@ -1447,13 +1438,16 @@ def main():
                 # Berechne Kalenderwoche
                 year, week, weekday = date_obj.isocalendar()
                 
-                # Berechne Start- und Enddatum der Woche
-                week_start, week_end = get_week_dates(year, week)
+                # Verwende tatsächliche Daten für Wochenberechnung
+                # Finde Montag dieser Woche
+                week_start = date_obj - timedelta(days=date_obj.weekday())
+                # Finde Freitag dieser Woche  
+                week_end = week_start + timedelta(days=4)
                 
                 # Formatiere die KW mit Datumsbereich
                 kw_display = f"KW {week:02d}"
                 date_range = f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}"
-                kw_key = f"KW {week:02d}"
+                kw_key = f"{week:02d}-{year}"  # Eindeutiger Key mit Jahr
                 
                 if kw_key not in weekly_data:
                     # Formatiere mit grauen Klammern und Datum
@@ -1464,7 +1458,8 @@ def main():
                         "Dienstag": "",
                         "Mittwoch": "",
                         "Donnerstag": "",
-                        "Freitag": ""
+                        "Freitag": "",
+                        "sort_key": f"{year}-{week:02d}"  # Für korrekte Sortierung
                     }
                 
                 # Weekday: 1=Montag, 2=Dienstag, ..., 5=Freitag
@@ -1474,9 +1469,13 @@ def main():
                     day_name = weekday_names[weekday]
                     weekly_data[kw_key][day_name] = employee
             
-            # Sortiere nach Kalenderwoche
-            sorted_weeks = sorted(weekly_data.keys(), key=lambda x: int(x.split()[1]))
+            # Sortiere nach Kalenderwoche und Jahr
+            sorted_weeks = sorted(weekly_data.keys(), key=lambda x: weekly_data[x]["sort_key"])
             sorted_data = [weekly_data[kw] for kw in sorted_weeks]
+            
+            # Entferne sort_key aus den Daten für die Anzeige
+            for data in sorted_data:
+                data.pop("sort_key", None)
             
             # Erstelle DataFrame
             df = pd.DataFrame(sorted_data)
@@ -1541,7 +1540,7 @@ def main():
                 st.download_button(
                     label="📊 Kalenderwochen-Plan (CSV)",
                     data=weekly_csv,
-                    file_name=f"schichtplan_kalenderwochen_2025.csv",
+                    file_name=f"schichtplan_kalenderwochen_{datetime.now().year}.csv",
                     mime="text/csv"
                 )
                 
@@ -1561,7 +1560,7 @@ def main():
                     st.download_button(
                         label="📋 Listen-Plan (CSV)",
                         data=list_csv,
-                        file_name=f"schichtplan_liste_2025.csv",
+                        file_name=f"schichtplan_liste_{datetime.now().year}.csv",
                         mime="text/csv"
                     )
             
@@ -1612,7 +1611,11 @@ def main():
                         for date_str, employee in current_weeks_schedule.items():
                             date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                             year, week, weekday = date_obj.isocalendar()
-                            week_start, week_end = get_week_dates(year, week)
+                            
+                            # Verwende tatsächliche Daten für Wochenberechnung
+                            week_start = date_obj - timedelta(days=date_obj.weekday())
+                            week_end = week_start + timedelta(days=4)
+                            
                             kw_display = f"KW {week:02d}"
                             date_range = f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}"
                             kw_key = f"KW {week:02d}"
@@ -1652,13 +1655,7 @@ def main():
                 except Exception as e:
                     st.error(f"PDF-Generierung (4 Wochen) fehlgeschlagen: {str(e)}")
                     
-                # Hilfsfunktion für PDF-Generation (falls noch nicht definiert)
-                if 'get_week_dates' not in globals():
-                    def get_week_dates(year, week):
-                        jan4 = datetime(year, 1, 4)
-                        week_start = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
-                        week_end = week_start + timedelta(days=4)
-                        return week_start, week_end
+                # Alte get_week_dates Funktion entfernt - wird nicht mehr benötigt
         else:
             st.info("Keine Einträge für die gewählten Filter gefunden.")
     
