@@ -568,13 +568,15 @@ def generate_fair_schedule(preferences, start_date=None, end_date=None, year=202
         start_date = datetime(year, 1, 1)
         end_date = datetime(year, 12, 31)
     
-    # Erstelle Liste aller Arbeitstage im Zeitraum (Mo-Fr)
+    # Erstelle Liste aller Arbeitstage im Zeitraum (Mo-Fr, ohne Feiertage)
     
     available_days = []
     current_date = start_date
     while current_date <= end_date:
         if current_date.weekday() < 5:  # Montag = 0, Freitag = 4
-            available_days.append(current_date)
+            # Prüfe, ob es kein Feiertag in Berlin ist
+            if not is_holiday_berlin(current_date):
+                available_days.append(current_date)
         current_date += timedelta(days=1)
     
     
@@ -730,7 +732,7 @@ def main():
         return
     
     st.title("📅 Schichtplaner")
-    st.markdown("*Effiziente Schichtplanung für Teams*")
+    st.markdown("*Effiziente Schichtplanung für Teams - Berücksichtigt Feiertage für Berlin*")
     
     # Logout-Button in der Sidebar
     with st.sidebar:
@@ -1282,13 +1284,11 @@ def main():
             schedule_start_date = datetime.combine(today, datetime.min.time())
             schedule_end_date = schedule_start_date + timedelta(days=30)
             
-            # Berechne Anzahl Werktage
-            total_days = (schedule_end_date - schedule_start_date).days + 1
-            weekdays = sum(1 for i in range(total_days) 
-                         if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+            # Berechne Anzahl Werktage ohne Feiertage
+            weekdays = count_working_days(schedule_start_date, schedule_end_date)
             
             st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Monat ab heute)")
-            st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+            st.info(f"📊 **Werktage (Mo-Fr, ohne Feiertage)**: {weekdays}")
             schedule_valid = True
 
         elif time_mode == "📅 Automatisch (3 Monate ab heute)":
@@ -1297,13 +1297,11 @@ def main():
             schedule_start_date = datetime.combine(today, datetime.min.time())
             schedule_end_date = schedule_start_date + timedelta(days=90)
             
-            # Berechne Anzahl Werktage
-            total_days = (schedule_end_date - schedule_start_date).days + 1
-            weekdays = sum(1 for i in range(total_days) 
-                         if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+            # Berechne Anzahl Werktage ohne Feiertage
+            weekdays = count_working_days(schedule_start_date, schedule_end_date)
             
             st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (3 Monate ab heute)")
-            st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+            st.info(f"📊 **Werktage (Mo-Fr, ohne Feiertage)**: {weekdays}")
             schedule_valid = True
 
         elif time_mode == "📅 Automatisch (1 Jahr ab heute)":
@@ -1312,13 +1310,11 @@ def main():
             schedule_start_date = datetime.combine(today, datetime.min.time())
             schedule_end_date = schedule_start_date + timedelta(days=365)
             
-            # Berechne Anzahl Werktage
-            total_days = (schedule_end_date - schedule_start_date).days + 1
-            weekdays = sum(1 for i in range(total_days) 
-                         if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+            # Berechne Anzahl Werktage ohne Feiertage
+            weekdays = count_working_days(schedule_start_date, schedule_end_date)
             
             st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Jahr ab heute)")
-            st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+            st.info(f"📊 **Werktage (Mo-Fr, ohne Feiertage)**: {weekdays}")
             schedule_valid = True
 
         else:  # Benutzerdefiniert
@@ -1357,20 +1353,18 @@ def main():
                     schedule_start_date = datetime.combine(custom_start_date, datetime.min.time())
                     schedule_end_date = datetime.combine(custom_end_date, datetime.min.time())
                     
-                    # Berechne Zeitraumdauer und Werktage
+                    # Berechne Zeitraumdauer und Werktage ohne Feiertage
                     duration_days = (schedule_end_date - schedule_start_date).days + 1
-                    total_days = duration_days
-                    weekdays = sum(1 for i in range(total_days) 
-                                 if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+                    weekdays = count_working_days(schedule_start_date, schedule_end_date)
                     
                     # Warnungen für sehr kurze oder sehr lange Zeiträume
                     if duration_days < 30:
-                        st.warning(f"⚠️ Kurzer Zeitraum: Nur {duration_days} Tage ({weekdays} Werktage)")
+                        st.warning(f"⚠️ Kurzer Zeitraum: Nur {duration_days} Tage ({weekdays} Werktage ohne Feiertage)")
                     elif duration_days > 730:  # 2 Jahre
-                        st.warning(f"⚠️ Langer Zeitraum: {duration_days} Tage ({weekdays} Werktage) - Generierung kann länger dauern")
+                        st.warning(f"⚠️ Langer Zeitraum: {duration_days} Tage ({weekdays} Werktage ohne Feiertage) - Generierung kann länger dauern")
                     
                     st.success(f"✅ **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} ({duration_days} Tage)")
-                    st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+                    st.info(f"📊 **Werktage (Mo-Fr, ohne Feiertage)**: {weekdays}")
                     schedule_valid = True
             else:
                 st.error("❌ Bitte wählen Sie Start- und Enddatum aus!")
@@ -1553,6 +1547,16 @@ def main():
                     if is_employee_unavailable(new_employee, date_obj):
                         st.error(f"❌ {new_employee} ist an diesem Tag nicht verfügbar (Urlaub oder Wochentag-Sperre)!")
                     
+                    unavailable_reasons = []
+                    if is_employee_unavailable(new_employee, date_obj):
+                        unavailable_reasons.append("Urlaub oder Wochentag-Sperre")
+                    if is_holiday_berlin(date_obj):
+                        unavailable_reasons.append("Feiertag in Berlin")
+                    
+                    if unavailable_reasons:
+                        reason_text = " und ".join(unavailable_reasons)
+                        st.error(f"❌ {new_employee} ist an diesem Tag nicht verfügbar ({reason_text})!")
+                    
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.button("✅ Änderung bestätigen", type="primary"):
@@ -1624,12 +1628,30 @@ def main():
                 - {second_date_obj.strftime('%d.%m.%Y')} ({second_weekday}): {second_employee} → {first_employee}
                 """)
                 
-                # Prüfe Verfügbarkeit beider Mitarbeiter für die neuen Tage
+                # Prüfe Verfügbarkeit beider Mitarbeiter für die neuen Tage (inkl. Feiertage)
                 warnings = []
+                
+                # Prüfe ersten Mitarbeiter (second_employee) am ersten Tag (first_date_obj)
+                unavailable_reasons_first = []
                 if is_employee_unavailable(second_employee, first_date_obj):
-                    warnings.append(f"❌ {second_employee} ist am {first_date_obj.strftime('%d.%m.%Y')} nicht verfügbar!")
+                    unavailable_reasons_first.append("Urlaub/Wochentag-Sperre")
+                if is_holiday_berlin(first_date_obj):
+                    unavailable_reasons_first.append("Feiertag")
+                    
+                if unavailable_reasons_first:
+                    reason_text = "/".join(unavailable_reasons_first)
+                    warnings.append(f"❌ {second_employee} ist am {first_date_obj.strftime('%d.%m.%Y')} nicht verfügbar ({reason_text})!")
+                
+                # Prüfe zweiten Mitarbeiter (first_employee) am zweiten Tag (second_date_obj)
+                unavailable_reasons_second = []
                 if is_employee_unavailable(first_employee, second_date_obj):
-                    warnings.append(f"❌ {first_employee} ist am {second_date_obj.strftime('%d.%m.%Y')} nicht verfügbar!")
+                    unavailable_reasons_second.append("Urlaub/Wochentag-Sperre")
+                if is_holiday_berlin(second_date_obj):
+                    unavailable_reasons_second.append("Feiertag")
+                    
+                if unavailable_reasons_second:
+                    reason_text = "/".join(unavailable_reasons_second)
+                    warnings.append(f"❌ {first_employee} ist am {second_date_obj.strftime('%d.%m.%Y')} nicht verfügbar ({reason_text})!")
                 
                 if warnings:
                     for warning in warnings:
@@ -2076,6 +2098,73 @@ def main():
         """, 
         unsafe_allow_html=True
     )
+
+def is_holiday_berlin(date_obj):
+    """Prüft ob ein Datum ein gesetzlicher Feiertag in Berlin ist"""
+    year = date_obj.year
+    month = date_obj.month
+    day = date_obj.day
+    
+    # Feste Feiertage in Berlin
+    fixed_holidays = [
+        (1, 1),    # Neujahr
+        (3, 8),    # Frauentag (seit 2019 in Berlin)
+        (5, 1),    # Tag der Arbeit
+        (10, 3),   # Tag der Deutschen Einheit
+        (12, 25),  # 1. Weihnachtstag
+        (12, 26),  # 2. Weihnachtstag
+    ]
+    
+    if (month, day) in fixed_holidays:
+        # Frauentag nur ab 2019
+        if month == 3 and day == 8 and year < 2019:
+            return False
+        return True
+    
+    # Variable Feiertage (Ostern-basiert) - vereinfachte Berechnung für häufige Jahre
+    # Für eine vollständige Lösung sollte eine Bibliothek wie 'holidays' verwendet werden
+    easter_dates = {
+        2024: (3, 31),  # Ostersonntag 2024
+        2025: (4, 20),  # Ostersonntag 2025
+        2026: (4, 5),   # Ostersonntag 2026
+        2027: (3, 28),  # Ostersonntag 2027
+        2028: (4, 16),  # Ostersonntag 2028
+        2029: (4, 1),   # Ostersonntag 2029
+        2030: (4, 21),  # Ostersonntag 2030
+        2031: (4, 13),  # Ostersonntag 2031
+        2032: (3, 28),  # Ostersonntag 2032
+        2033: (4, 17),  # Ostersonntag 2033
+        2034: (4, 9),   # Ostersonntag 2034
+        2035: (3, 25),  # Ostersonntag 2035
+    }
+    
+    if year in easter_dates:
+        easter_month, easter_day = easter_dates[year]
+        easter_date = datetime(year, easter_month, easter_day).date()
+        
+        # Berechne variable Feiertage basierend auf Ostersonntag
+        karfreitag = easter_date - timedelta(days=2)
+        ostermontag = easter_date + timedelta(days=1)
+        christi_himmelfahrt = easter_date + timedelta(days=39)
+        pfingstmontag = easter_date + timedelta(days=50)
+        
+        variable_holidays = [karfreitag, ostermontag, christi_himmelfahrt, pfingstmontag]
+        
+        if date_obj in variable_holidays:
+            return True
+    
+    return False
+
+def count_working_days(start_date, end_date):
+    """Zählt Werktage (Mo-Fr) ohne Feiertage in Berlin im gegebenen Zeitraum"""
+    count = 0
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() < 5:  # Montag = 0, Freitag = 4
+            if not is_holiday_berlin(current_date):
+                count += 1
+        current_date += timedelta(days=1)
+    return count
 
 if __name__ == "__main__":
     main() 
