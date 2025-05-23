@@ -1750,6 +1750,23 @@ def main():
             st.info("Keine Daten für die nächsten 4 Wochen verfügbar.")
 
     elif mode == "Plan anzeigen":
+        # Automatisch zum Seitenanfang scrollen
+        st.markdown("""
+            <style>
+                .main .block-container {
+                    scroll-behavior: smooth;
+                }
+            </style>
+            <script>
+                setTimeout(function() {
+                    var mainContent = window.parent.document.querySelector('section.main');
+                    if (mainContent) {
+                        mainContent.scrollTop = 0;
+                    }
+                }, 50);
+            </script>
+        """, unsafe_allow_html=True)
+        
         st.header("📋 Generierter Schichtplan")
         
         schedule = load_schedule()
