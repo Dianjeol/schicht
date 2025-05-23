@@ -1272,11 +1272,41 @@ def main():
         # Zeitraum-Modus auswählen
         time_mode = st.radio(
             "Zeitraum-Modus:",
-            ["📅 Automatisch (1 Jahr ab heute)", "🎯 Benutzerdefiniert"],
-            help="Wählen Sie zwischen automatischem Zeitraum oder eigener Datumsauswahl"
+            ["📅 Automatisch (1 Monat ab heute)", "📅 Automatisch (3 Monate ab heute)", "📅 Automatisch (1 Jahr ab heute)", "🎯 Benutzerdefiniert"],
+            help="Wählen Sie zwischen automatischen Zeiträumen oder eigener Datumsauswahl"
         )
 
-        if time_mode == "📅 Automatisch (1 Jahr ab heute)":
+        if time_mode == "📅 Automatisch (1 Monat ab heute)":
+            # Automatischer Zeitraum: Ab heute für 1 Monat
+            today = datetime.now().date()
+            schedule_start_date = datetime.combine(today, datetime.min.time())
+            schedule_end_date = schedule_start_date + timedelta(days=30)
+            
+            # Berechne Anzahl Werktage
+            total_days = (schedule_end_date - schedule_start_date).days + 1
+            weekdays = sum(1 for i in range(total_days) 
+                         if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+            
+            st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Monat ab heute)")
+            st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+            schedule_valid = True
+
+        elif time_mode == "📅 Automatisch (3 Monate ab heute)":
+            # Automatischer Zeitraum: Ab heute für 3 Monate
+            today = datetime.now().date()
+            schedule_start_date = datetime.combine(today, datetime.min.time())
+            schedule_end_date = schedule_start_date + timedelta(days=90)
+            
+            # Berechne Anzahl Werktage
+            total_days = (schedule_end_date - schedule_start_date).days + 1
+            weekdays = sum(1 for i in range(total_days) 
+                         if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+            
+            st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (3 Monate ab heute)")
+            st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+            schedule_valid = True
+
+        elif time_mode == "📅 Automatisch (1 Jahr ab heute)":
             # Automatischer Zeitraum: Ab heute für 1 Jahr
             today = datetime.now().date()
             schedule_start_date = datetime.combine(today, datetime.min.time())
