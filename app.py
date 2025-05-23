@@ -448,12 +448,11 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
             for name, count in sorted_assignments:
                 stats_data.append([name, str(count)])
             
-            # Fairness-Metrik
-            if len(assignment_count) > 1:
-                min_shifts = min(assignment_count.values())
-                max_shifts = max(assignment_count.values())
+            # Gesamtsumme
+            if len(assignment_count) > 0:
+                total_shifts = sum(assignment_count.values())
                 stats_data.append(["", ""])  # Leerzeile
-                stats_data.append(["Fairness (Spreizung)", f"{max_shifts - min_shifts} Schichten"])
+                stats_data.append(["Summe", f"{total_shifts} Schichten"])
             
             stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
             stats_table.setStyle(TableStyle([
@@ -1400,10 +1399,9 @@ def main():
                 st.dataframe(stats_df, use_container_width=True)
                 
                 # Zeige Verteilungsstatistik
-                min_shifts = min(assignment_count.values())
-                max_shifts = max(assignment_count.values())
-                st.metric("Fairness", f"Spreizung: {max_shifts - min_shifts} Schichten", 
-                         help="Unterschied zwischen Person mit meisten und wenigsten Schichten")
+                total_shifts = sum(assignment_count.values())
+                st.metric("Summe", f"{total_shifts} Schichten", 
+                         help="Gesamtanzahl aller zugewiesenen Schichten")
             
             with col2:
                 st.subheader("🎯 Detaillierte Wunscherfüllung")
