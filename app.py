@@ -1026,10 +1026,10 @@ def main():
     st.markdown("""
         <div class="main-title">
             🗓️ Schichtplaner Pro
-            <div class="main-subtitle">Effiziente Schichtplanung für Teams - Fair • Digital • Sozial</div>
+            <div class="main-subtitle">Effiziente Schichtplanung für Teams</div>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown("*Effiziente Schichtplanung für Teams - Berücksichtigt Feiertage für Berlin*")
+    st.markdown("*Berücksichtigt Feiertage für Berlin*")
     
     # Logout-Button in der Sidebar
     with st.sidebar:
