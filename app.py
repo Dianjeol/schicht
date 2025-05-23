@@ -745,7 +745,7 @@ def main():
     st.sidebar.title("Navigation")
     mode = st.sidebar.radio(
         "Wählen Sie eine Option:",
-        ["Personen eingeben", "Urlaub eintragen", "Schichtplan generieren", "Plan anzeigen"]
+        ["Personen eingeben", "Urlaub eintragen", "Schichtplan generieren", "Manuelle Änderungen", "Plan anzeigen"]
     )
     
     if mode == "Personen eingeben":
@@ -1455,6 +1455,242 @@ def main():
             
             st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
     
+    elif mode == "Manuelle Änderungen":
+        st.header("✏️ Manuelle Änderungen")
+        
+        schedule = load_schedule()
+        
+        if not schedule:
+            st.warning("Noch kein Schichtplan generiert. Bitte gehen Sie zu 'Schichtplan generieren'.")
+            return
+        
+        preferences = load_preferences()
+        if not preferences:
+            st.warning("Keine Mitarbeitenden definiert. Bitte gehen Sie zu 'Personen eingeben'.")
+            return
+        
+        st.info("💡 Hier können Sie einzelne Tage im Schichtplan tauschen oder ändern.")
+        
+        # Auswahl des Bearbeitungsmodus
+        edit_mode = st.radio(
+            "Was möchten Sie tun?",
+            ["Einzelnen Tag ändern", "Zwei Tage tauschen"],
+            horizontal=True
+        )
+        
+        if edit_mode == "Einzelnen Tag ändern":
+            st.subheader("📅 Einzelnen Tag ändern")
+            
+            # Erstelle Liste aller verfügbaren Tage
+            date_options = []
+            for date_str, employee in sorted(schedule.items()):
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                weekday_name = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()]
+                display_text = f"{date_obj.strftime('%d.%m.%Y')} ({weekday_name}) - {employee}"
+                date_options.append((date_str, display_text))
+            
+            # Tag auswählen
+            selected_date_info = st.selectbox(
+                "Tag auswählen:",
+                date_options,
+                format_func=lambda x: x[1],
+                help="Wählen Sie den Tag, den Sie ändern möchten"
+            )
+            
+            if selected_date_info:
+                selected_date_str = selected_date_info[0]
+                current_employee = schedule[selected_date_str]
+                date_obj = datetime.strptime(selected_date_str, '%Y-%m-%d')
+                weekday_name = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()]
+                
+                st.info(f"**Aktuell:** {date_obj.strftime('%d.%m.%Y')} ({weekday_name}) → {current_employee}")
+                
+                # Neuen Mitarbeiter auswählen
+                employee_options = sorted(preferences.keys())
+                try:
+                    current_index = employee_options.index(current_employee)
+                except ValueError:
+                    current_index = 0
+                
+                new_employee = st.selectbox(
+                    "Neuen Mitarbeiter auswählen:",
+                    employee_options,
+                    index=current_index,
+                    help="Wählen Sie den Mitarbeiter, der an diesem Tag arbeiten soll"
+                )
+                
+                # Warnung bei Änderung anzeigen
+                if new_employee != current_employee:
+                    st.warning(f"⚠️ Sie sind dabei, {current_employee} durch {new_employee} zu ersetzen.")
+                    
+                    # Prüfe Verfügbarkeit des neuen Mitarbeiters
+                    if is_employee_unavailable(new_employee, date_obj):
+                        st.error(f"❌ {new_employee} ist an diesem Tag nicht verfügbar (Urlaub oder Wochentag-Sperre)!")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("✅ Änderung bestätigen", type="primary"):
+                            # Aktualisiere den Schedule
+                            updated_schedule = schedule.copy()
+                            updated_schedule[selected_date_str] = new_employee
+                            save_schedule(updated_schedule)
+                            st.success(f"✅ Tag erfolgreich geändert: {date_obj.strftime('%d.%m.%Y')} → {new_employee}")
+                            st.rerun()
+                    
+                    with col2:
+                        if st.button("❌ Abbrechen", type="secondary"):
+                            st.rerun()
+                else:
+                    st.info("💡 Keine Änderung ausgewählt.")
+        
+        elif edit_mode == "Zwei Tage tauschen":
+            st.subheader("🔄 Zwei Tage tauschen")
+            
+            # Erstelle Liste aller verfügbaren Tage
+            date_options = []
+            for date_str, employee in sorted(schedule.items()):
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                weekday_name = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][date_obj.weekday()]
+                display_text = f"{date_obj.strftime('%d.%m.%Y')} ({weekday_name}) - {employee}"
+                date_options.append((date_str, display_text))
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Erster Tag:**")
+                first_date_info = st.selectbox(
+                    "Ersten Tag auswählen:",
+                    date_options,
+                    format_func=lambda x: x[1],
+                    help="Wählen Sie den ersten Tag zum Tauschen",
+                    key="first_date"
+                )
+            
+            with col2:
+                st.markdown("**Zweiter Tag:**")
+                # Filtere den ersten Tag aus den Optionen heraus
+                filtered_options = [opt for opt in date_options if opt != first_date_info] if first_date_info else date_options
+                
+                second_date_info = st.selectbox(
+                    "Zweiten Tag auswählen:",
+                    filtered_options,
+                    format_func=lambda x: x[1],
+                    help="Wählen Sie den zweiten Tag zum Tauschen",
+                    key="second_date"
+                )
+            
+            if first_date_info and second_date_info:
+                first_date_str = first_date_info[0]
+                second_date_str = second_date_info[0]
+                
+                first_employee = schedule[first_date_str]
+                second_employee = schedule[second_date_str]
+                
+                first_date_obj = datetime.strptime(first_date_str, '%Y-%m-%d')
+                second_date_obj = datetime.strptime(second_date_str, '%Y-%m-%d')
+                
+                first_weekday = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][first_date_obj.weekday()]
+                second_weekday = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"][second_date_obj.weekday()]
+                
+                st.info(f"""
+                **Tausch-Vorschau:**
+                - {first_date_obj.strftime('%d.%m.%Y')} ({first_weekday}): {first_employee} → {second_employee}
+                - {second_date_obj.strftime('%d.%m.%Y')} ({second_weekday}): {second_employee} → {first_employee}
+                """)
+                
+                # Prüfe Verfügbarkeit beider Mitarbeiter für die neuen Tage
+                warnings = []
+                if is_employee_unavailable(second_employee, first_date_obj):
+                    warnings.append(f"❌ {second_employee} ist am {first_date_obj.strftime('%d.%m.%Y')} nicht verfügbar!")
+                if is_employee_unavailable(first_employee, second_date_obj):
+                    warnings.append(f"❌ {first_employee} ist am {second_date_obj.strftime('%d.%m.%Y')} nicht verfügbar!")
+                
+                if warnings:
+                    for warning in warnings:
+                        st.error(warning)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🔄 Tausch bestätigen", type="primary", disabled=bool(warnings)):
+                        # Führe den Tausch durch
+                        updated_schedule = schedule.copy()
+                        updated_schedule[first_date_str] = second_employee
+                        updated_schedule[second_date_str] = first_employee
+                        save_schedule(updated_schedule)
+                        st.success(f"✅ Tausch erfolgreich durchgeführt!")
+                        st.rerun()
+                
+                with col2:
+                    if st.button("❌ Abbrechen", type="secondary"):
+                        st.rerun()
+        
+        st.divider()
+        
+        # Zeige aktuelle Übersicht der nächsten Wochen
+        st.subheader("📋 Aktuelle Übersicht (nächste 4 Wochen)")
+        
+        # Hole die nächsten 4 Wochen
+        current_weeks_schedule = get_current_and_next_weeks(schedule, 4)
+        
+        if current_weeks_schedule:
+            # Baue weeks_data für aktuelle Wochen
+            weekly_data_current = {}
+            
+            for date_str, employee in current_weeks_schedule.items():
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                year, week, weekday = date_obj.isocalendar()
+                
+                # Verwende tatsächliche Daten für Wochenberechnung
+                week_start = date_obj - timedelta(days=date_obj.weekday())
+                week_end = week_start + timedelta(days=4)
+                
+                kw_display = f"KW {week:02d}"
+                date_range = f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}"
+                kw_key = f"{week:02d}-{year}"
+                
+                if kw_key not in weekly_data_current:
+                    weekly_data_current[kw_key] = {
+                        "Kalenderwoche": f"{kw_display} ({date_range})",
+                        "Montag": "",
+                        "Dienstag": "",
+                        "Mittwoch": "",
+                        "Donnerstag": "",
+                        "Freitag": "",
+                        "sort_key": f"{year}-{week:02d}"
+                    }
+                
+                weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
+                if weekday in weekday_names:
+                    day_name = weekday_names[weekday]
+                    weekly_data_current[kw_key][day_name] = employee
+            
+            # Sortiere nach Kalenderwoche und Jahr
+            sorted_weeks_current = sorted(weekly_data_current.keys(), key=lambda x: weekly_data_current[x]["sort_key"])
+            sorted_data_current = [weekly_data_current[kw] for kw in sorted_weeks_current]
+            
+            # Entferne sort_key aus den Daten für die Anzeige
+            for data in sorted_data_current:
+                data.pop("sort_key", None)
+            
+            # Erstelle DataFrame
+            current_df = pd.DataFrame(sorted_data_current)
+            
+            st.dataframe(
+                current_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Kalenderwoche": st.column_config.TextColumn("📅 Kalenderwoche", width="medium"),
+                    "Montag": st.column_config.TextColumn("🔵 Montag", width="medium"),
+                    "Dienstag": st.column_config.TextColumn("🟢 Dienstag", width="medium"),
+                    "Mittwoch": st.column_config.TextColumn("🟡 Mittwoch", width="medium"),
+                    "Donnerstag": st.column_config.TextColumn("🟠 Donnerstag", width="medium"),
+                    "Freitag": st.column_config.TextColumn("🔴 Freitag", width="medium")
+                }
+            )
+        else:
+            st.info("Keine Daten für die nächsten 4 Wochen verfügbar.")
+
     elif mode == "Plan anzeigen":
         st.header("📋 Generierter Schichtplan")
         
