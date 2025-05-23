@@ -1955,6 +1955,84 @@ def main():
                     st.error(f"PDF-Generierung (4 Wochen) fehlgeschlagen: {str(e)}")
                     
                 # Alte get_week_dates Funktion entfernt - wird nicht mehr benötigt
+            
+            # Statistiken anzeigen
+            st.divider()
+            st.subheader("📊 Statistiken zum angezeigten Zeitraum")
+            
+            # Lade Präferenzen für Statistiken
+            preferences = load_preferences()
+            
+            if preferences:
+                # Berechne Statistiken basierend auf dem gefilterten Schedule
+                assignment_count, preference_stats = calculate_statistics_from_schedule(filtered_schedule)
+                
+                if assignment_count:
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        st.subheader("📊 Schichtverteilung")
+                        stats_df = pd.DataFrame([
+                            {"Name": name, "Anzahl Schichten": count}
+                            for name, count in assignment_count.items()
+                        ]).sort_values("Anzahl Schichten", ascending=False)
+                        st.dataframe(stats_df, use_container_width=True)
+                        
+                        # Zeige Gesamtsumme
+                        total_shifts = sum(assignment_count.values())
+                        st.metric("Summe", f"{total_shifts} Schichten", 
+                                 help="Gesamtanzahl aller zugewiesenen Schichten")
+                    
+                    with col2:
+                        st.subheader("🎯 Detaillierte Wunscherfüllung")
+                        
+                        # Erstelle detaillierte Wunsch-Statistik
+                        detailed_stats = []
+                        for name in sorted(preferences.keys()):
+                            if name in assignment_count:  # Nur Mitarbeiter anzeigen, die im gefilterten Zeitraum Schichten haben
+                                total_assignments = assignment_count[name]
+                                first_wishes = preference_stats[name]['first']
+                                second_wishes = preference_stats[name]['second'] 
+                                third_wishes = preference_stats[name]['third']
+                                fourth_wishes = preference_stats[name]['fourth']
+                                fifth_wishes = preference_stats[name]['fifth']
+                                
+                                detailed_stats.append({
+                                    "Name": name,
+                                    "🥇 1. Wünsche": first_wishes,
+                                    "🥈 2. Wünsche": second_wishes,
+                                    "🥉 3. Wünsche": third_wishes,
+                                    "🏅 4. Wünsche": fourth_wishes,
+                                    "🏅 5. Wünsche": fifth_wishes,
+                                    "Gesamt": total_assignments
+                                })
+                        
+                        pref_df = pd.DataFrame(detailed_stats)
+                        st.dataframe(pref_df, use_container_width=True)
+                        
+                        # Zeige Fairness-Metriken für Wünsche
+                        total_first = sum(preference_stats[emp]['first'] for emp in assignment_count.keys())
+                        total_second = sum(preference_stats[emp]['second'] for emp in assignment_count.keys())
+                        total_third = sum(preference_stats[emp]['third'] for emp in assignment_count.keys())
+                        total_fourth = sum(preference_stats[emp]['fourth'] for emp in assignment_count.keys())
+                        total_fifth = sum(preference_stats[emp]['fifth'] for emp in assignment_count.keys())
+                        
+                        col_a, col_b, col_c, col_d, col_e = st.columns(5)
+                        with col_a:
+                            st.metric("🥇 1. Wünsche", total_first)
+                        with col_b:
+                            st.metric("🥈 2. Wünsche", total_second)
+                        with col_c:
+                            st.metric("🥉 3. Wünsche", total_third)
+                        with col_d:
+                            st.metric("🏅 4. Wünsche", total_fourth)
+                        with col_e:
+                            st.metric("🏅 5. Wünsche", total_fifth)
+                else:
+                    st.info("Keine Daten für Statistiken im gewählten Zeitraum verfügbar.")
+            else:
+                st.warning("Keine Mitarbeiterpräferenzen gefunden. Statistiken können nicht berechnet werden.")
+                    
         else:
             st.info("Keine Einträge für die gewählten Filter gefunden.")
     
