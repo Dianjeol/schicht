@@ -1710,7 +1710,8 @@ def main():
                         "Mittwoch": "",
                         "Donnerstag": "",
                         "Freitag": "",
-                        "sort_key": f"{year}-{week:02d}"
+                        "sort_key": f"{year}-{week:02d}",
+                        "week_start": week_start  # Für Feiertags-Überprüfung
                     }
                 
                 weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
@@ -1722,13 +1723,27 @@ def main():
                     else:
                         weekly_data_current[kw_key][day_name] = employee
             
+            # Zusätzlich: Fülle alle Feiertage der Kalenderwochen mit "—" auf
+            for kw_key, week_info in weekly_data_current.items():
+                week_start = week_info["week_start"]
+                weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
+                
+                # Prüfe jeden Wochentag der Kalenderwoche auf Feiertage
+                for weekday_num, day_name in weekday_names.items():
+                    current_date = week_start + timedelta(days=weekday_num - 1)
+                    
+                    # Wenn das Feld leer ist und es ein Feiertag ist, fülle mit "—"
+                    if week_info[day_name] == "" and is_holiday_berlin(current_date):
+                        weekly_data_current[kw_key][day_name] = "—"
+            
             # Sortiere nach Kalenderwoche und Jahr
             sorted_weeks_current = sorted(weekly_data_current.keys(), key=lambda x: weekly_data_current[x]["sort_key"])
             sorted_data_current = [weekly_data_current[kw] for kw in sorted_weeks_current]
             
-            # Entferne sort_key aus den Daten für die Anzeige
+            # Entferne sort_key und week_start aus den Daten für die Anzeige
             for data in sorted_data_current:
                 data.pop("sort_key", None)
+                data.pop("week_start", None)
             
             # Erstelle DataFrame
             current_df = pd.DataFrame(sorted_data_current)
@@ -1837,7 +1852,8 @@ def main():
                         "Mittwoch": "",
                         "Donnerstag": "",
                         "Freitag": "",
-                        "sort_key": f"{year}-{week:02d}"  # Für korrekte Sortierung
+                        "sort_key": f"{year}-{week:02d}",  # Für korrekte Sortierung
+                        "week_start": week_start  # Für Feiertags-Überprüfung
                     }
                 
                 # Weekday: 1=Montag, 2=Dienstag, ..., 5=Freitag
@@ -1851,13 +1867,27 @@ def main():
                     else:
                         weekly_data[kw_key][day_name] = employee
             
+            # Zusätzlich: Fülle alle Feiertage der Kalenderwochen mit "—" auf
+            for kw_key, week_info in weekly_data.items():
+                week_start = week_info["week_start"]
+                weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
+                
+                # Prüfe jeden Wochentag der Kalenderwoche auf Feiertage
+                for weekday_num, day_name in weekday_names.items():
+                    current_date = week_start + timedelta(days=weekday_num - 1)
+                    
+                    # Wenn das Feld leer ist und es ein Feiertag ist, fülle mit "—"
+                    if week_info[day_name] == "" and is_holiday_berlin(current_date):
+                        weekly_data[kw_key][day_name] = "—"
+            
             # Sortiere nach Kalenderwoche und Jahr
             sorted_weeks = sorted(weekly_data.keys(), key=lambda x: weekly_data[x]["sort_key"])
             sorted_data = [weekly_data[kw] for kw in sorted_weeks]
             
-            # Entferne sort_key aus den Daten für die Anzeige
+            # Entferne sort_key und week_start aus den Daten für die Anzeige
             for data in sorted_data:
                 data.pop("sort_key", None)
+                data.pop("week_start", None)
             
             # Erstelle DataFrame
             df = pd.DataFrame(sorted_data)
@@ -2021,7 +2051,8 @@ def main():
                                     "Dienstag": "",
                                     "Mittwoch": "",
                                     "Donnerstag": "",
-                                    "Freitag": ""
+                                    "Freitag": "",
+                                    "week_start": week_start  # Für Feiertags-Überprüfung
                                 }
                             
                             weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
@@ -2033,8 +2064,25 @@ def main():
                                 else:
                                     weekly_data_current[kw_key][day_name] = employee
                         
+                        # Zusätzlich: Fülle alle Feiertage der Kalenderwochen mit "—" auf
+                        for kw_key, week_info in weekly_data_current.items():
+                            week_start = week_info["week_start"]
+                            weekday_names = {1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"}
+                            
+                            # Prüfe jeden Wochentag der Kalenderwoche auf Feiertage
+                            for weekday_num, day_name in weekday_names.items():
+                                current_date = week_start + timedelta(days=weekday_num - 1)
+                                
+                                # Wenn das Feld leer ist und es ein Feiertag ist, fülle mit "—"
+                                if week_info[day_name] == "" and is_holiday_berlin(current_date):
+                                    weekly_data_current[kw_key][day_name] = "—"
+                        
                         sorted_weeks_current = sorted(weekly_data_current.keys(), key=lambda x: int(x.split()[1]))
                         sorted_data_current = [weekly_data_current[kw] for kw in sorted_weeks_current]
+                        
+                        # Entferne week_start aus den Daten für die PDF-Generierung
+                        for data in sorted_data_current:
+                            data.pop("week_start", None)
                         
                         current_weeks_pdf = generate_pdf_report(
                             current_weeks_schedule,
