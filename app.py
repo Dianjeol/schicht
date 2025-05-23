@@ -18,7 +18,7 @@ import holidays
 
 # Seitenkonfiguration
 st.set_page_config(
-    page_title="AWO Schichtplaner",
+    page_title="🗓️ Schichtplaner Pro",
     page_icon="❤️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -737,244 +737,245 @@ def main():
     if not check_password():
         return
     
-    # AWO Corporate Design CSS
+    # Modernes Streamlit Design
     st.markdown("""
         <style>
-        /* AWO Corporate Design CSS */
-        @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap');
+        /* Modern Streamlit Design - Best Practices */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        /* Globale Variablen für AWO Farben */
+        /* Globale Variablen für moderne Farben */
         :root {
-            --awo-red: #e2001A;
-            --awo-yellow: #fecd1b;
-            --awo-blue: #009ee0;
-            --awo-orange: #ec7405;
-            --awo-green: #79b530;
-            --awo-white: #ffffff;
-            --awo-gray: #f5f5f5;
-            --awo-dark: #333333;
+            --primary-blue: #1f77b4;
+            --primary-dark: #0d47a1;
+            --secondary-purple: #9c27b0;
+            --accent-green: #4caf50;
+            --accent-orange: #ff9800;
+            --accent-red: #f44336;
+            --background-light: #fafafa;
+            --background-card: #ffffff;
+            --text-primary: #2e3440;
+            --text-secondary: #5e81ac;
+            --border-light: #e3f2fd;
+            --shadow-soft: 0 2px 10px rgba(0,0,0,0.08);
+            --shadow-medium: 0 4px 20px rgba(0,0,0,0.12);
         }
         
-        /* Hauptcontainer und Body */
+        /* Hauptcontainer */
         .main .block-container {
             padding-top: 2rem;
             padding-bottom: 2rem;
-            max-width: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 0;
         }
         
-        /* AWO Logo Container - obere rechte Ecke */
-        .awo-logo-container {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1000;
-            background: var(--awo-white);
-            padding: 0.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .awo-logo {
-            height: 40px;
-            width: auto;
-        }
-        
-        /* Haupttitel Styling */
-        .main-title {
-            background: linear-gradient(135deg, var(--awo-red), var(--awo-orange));
-            color: var(--awo-white);
-            padding: 2rem 2rem 1.5rem 2rem;
-            margin: -1rem -2rem 2rem -2rem;
-            border-radius: 0 0 20px 20px;
+        /* Header-Bereich */
+        .main-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem 2rem 2rem;
+            margin: -2rem -2rem 3rem -2rem;
+            border-radius: 0 0 30px 30px;
             text-align: center;
-            font-family: Arial, sans-serif;
+            box-shadow: var(--shadow-medium);
+        }
+        
+        .main-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 3rem;
             font-weight: 700;
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(226, 0, 26, 0.3);
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         
         .main-subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 1.1rem;
-            font-weight: 400;
-            margin-top: 0.5rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 300;
+            opacity: 0.9;
+            margin-bottom: 0;
         }
         
-        /* AWO Button Styles */
+        /* Content Area */
+        .content-container {
+            background: var(--background-card);
+            border-radius: 20px;
+            padding: 2rem;
+            margin: 1rem 0;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-light);
+        }
+        
+        /* Moderne Button Styles */
         .stButton > button {
-            background: linear-gradient(135deg, var(--awo-red), #c71717);
-            color: var(--awo-white);
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-dark));
+            color: white;
             border: none;
-            border-radius: 25px;
-            padding: 0.6rem 2rem;
-            font-weight: 700;
-            font-family: Arial, sans-serif;
-            box-shadow: 0 4px 15px rgba(226, 0, 26, 0.3);
-            transition: all 0.3s ease;
+            border-radius: 12px;
+            padding: 0.75rem 2rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: var(--shadow-soft);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
         }
         
         .stButton > button:hover {
-            background: linear-gradient(135deg, #c71717, var(--awo-red));
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(226, 0, 26, 0.4);
+            box-shadow: var(--shadow-medium);
+            background: linear-gradient(45deg, var(--primary-dark), var(--secondary-purple));
         }
         
-        /* Sekundäre Buttons (type="secondary") */
+        .stButton > button:focus {
+            outline: none;
+            border: 2px solid var(--accent-green);
+            transform: translateY(-1px);
+        }
+        
+        /* Sekundäre Buttons */
         .stButton > button[kind="secondary"] {
-            background: linear-gradient(135deg, var(--awo-blue), #0088c7);
-            color: var(--awo-white);
+            background: linear-gradient(45deg, var(--text-secondary), var(--secondary-purple));
+            color: white;
         }
         
         .stButton > button[kind="secondary"]:hover {
-            background: linear-gradient(135deg, #0088c7, var(--awo-blue));
+            background: linear-gradient(45deg, var(--secondary-purple), var(--accent-orange));
         }
         
         /* Sidebar Styling */
-        .css-1d391kg {
-            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
-        }
-        
-        .css-17eq0hr {
-            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
+        .css-1d391kg, .css-17eq0hr {
+            background: linear-gradient(180deg, var(--primary-dark) 0%, var(--secondary-purple) 100%);
         }
         
         .sidebar .sidebar-content {
-            background: linear-gradient(180deg, var(--awo-red), var(--awo-orange));
+            background: transparent;
+            border-radius: 0 20px 20px 0;
         }
         
-        /* Sidebar Title */
-        .css-1v3fvcr h1 {
-            color: var(--awo-white);
-            font-family: Arial, sans-serif;
-            font-weight: 700;
-        }
-        
-        /* Sidebar Radio Buttons */
+        /* Sidebar Navigation */
         .stRadio > label {
-            color: var(--awo-white);
-            font-weight: 600;
-            font-family: Arial, sans-serif;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 1rem;
         }
         
         .stRadio > div {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
+            border-radius: 15px;
             padding: 1rem;
             margin: 0.5rem 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         /* Subheader Styling */
-        .css-10trblm {
-            color: var(--awo-red);
-            font-family: Arial, sans-serif;
-            font-weight: 700;
-            border-bottom: 3px solid var(--awo-yellow);
+        h2, h3 {
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            border-bottom: 3px solid var(--primary-blue);
             padding-bottom: 0.5rem;
             margin-bottom: 1.5rem;
         }
         
-        /* Info Boxes */
-        .stInfo {
-            background: linear-gradient(135deg, rgba(0, 158, 224, 0.1), rgba(121, 181, 48, 0.1));
-            border-left: 5px solid var(--awo-blue);
-            border-radius: 10px;
+        /* Input Styling */
+        .stSelectbox > div > div, .stTextInput > div > div {
+            border-radius: 12px;
+            border: 2px solid var(--border-light);
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
         }
         
-        .stSuccess {
-            background: linear-gradient(135deg, rgba(121, 181, 48, 0.1), rgba(254, 205, 27, 0.1));
-            border-left: 5px solid var(--awo-green);
-            border-radius: 10px;
+        .stSelectbox > div > div:focus-within, .stTextInput > div > div:focus-within {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(31, 119, 180, 0.1);
         }
         
-        .stWarning {
-            background: linear-gradient(135deg, rgba(254, 205, 27, 0.1), rgba(236, 116, 5, 0.1));
-            border-left: 5px solid var(--awo-yellow);
-            border-radius: 10px;
-        }
-        
-        .stError {
-            background: linear-gradient(135deg, rgba(226, 0, 26, 0.1), rgba(236, 116, 5, 0.1));
-            border-left: 5px solid var(--awo-red);
-            border-radius: 10px;
-        }
-        
-        /* DataFrames */
+        /* DataFrame Styling */
         .stDataFrame {
             border-radius: 15px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-light);
         }
         
-        /* Selectboxes und Inputs */
-        .stSelectbox > div > div {
-            border-radius: 10px;
-            border: 2px solid var(--awo-gray);
+        .stDataFrame [data-testid="stDataFrameCell"] {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
         }
         
-        .stSelectbox > div > div:focus-within {
-            border-color: var(--awo-blue);
-            box-shadow: 0 0 10px rgba(0, 158, 224, 0.3);
+        /* Info Boxes */
+        .stInfo {
+            background: linear-gradient(135deg, rgba(31, 119, 180, 0.1), rgba(156, 39, 176, 0.05));
+            border-left: 4px solid var(--primary-blue);
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
         }
         
-        .stTextInput > div > div {
-            border-radius: 10px;
-            border: 2px solid var(--awo-gray);
+        .stSuccess {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(102, 126, 234, 0.05));
+            border-left: 4px solid var(--accent-green);
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
         }
         
-        .stTextInput > div > div:focus-within {
-            border-color: var(--awo-blue);
-            box-shadow: 0 0 10px rgba(0, 158, 224, 0.3);
+        .stWarning {
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(244, 67, 54, 0.05));
+            border-left: 4px solid var(--accent-orange);
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .stError {
+            background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(255, 152, 0, 0.05));
+            border-left: 4px solid var(--accent-red);
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
         }
         
         /* Metrics */
         .metric-container {
-            background: linear-gradient(135deg, var(--awo-white), var(--awo-gray));
+            background: var(--background-card);
             border-radius: 15px;
             padding: 1.5rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border-left: 5px solid var(--awo-red);
+            box-shadow: var(--shadow-soft);
+            border-left: 4px solid var(--primary-blue);
+            font-family: 'Inter', sans-serif;
         }
         
         /* Download Buttons */
         .stDownloadButton > button {
-            background: linear-gradient(135deg, var(--awo-green), #6ba028);
-            color: var(--awo-white);
+            background: linear-gradient(45deg, var(--accent-green), #388e3c);
+            color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
             font-weight: 600;
-            box-shadow: 0 3px 12px rgba(121, 181, 48, 0.3);
+            box-shadow: var(--shadow-soft);
+            transition: all 0.3s ease;
         }
         
         .stDownloadButton > button:hover {
-            background: linear-gradient(135deg, #6ba028, var(--awo-green));
-            transform: translateY(-1px);
+            background: linear-gradient(45deg, #388e3c, var(--secondary-purple));
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+        }
+        
+        /* Toggle und Checkbox */
+        .stCheckbox > label {
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
         }
         
         /* Divider */
         hr {
             border: none;
-            height: 3px;
-            background: linear-gradient(90deg, var(--awo-red), var(--awo-yellow), var(--awo-blue), var(--awo-orange), var(--awo-green));
-            border-radius: 5px;
-            margin: 2rem 0;
-        }
-        
-        /* Footer */
-        .awo-footer {
-            background: linear-gradient(135deg, var(--awo-red), var(--awo-orange));
-            color: var(--awo-white);
-            text-align: center;
-            padding: 2rem;
-            margin: 2rem -2rem -2rem -2rem;
-            border-radius: 20px 20px 0 0;
-            font-family: Arial, sans-serif;
-        }
-        
-        /* Toggle Switches */
-        .stCheckbox > label {
-            color: var(--awo-dark);
-            font-weight: 600;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--secondary-purple), var(--accent-green));
+            border-radius: 2px;
+            margin: 3rem 0;
         }
         
         /* Responsive Design */
@@ -1033,7 +1034,7 @@ def main():
     # Haupttitel mit AWO Design
     st.markdown("""
         <div class="main-title">
-            ❤️ AWO Schichtplaner
+            ❤️ 🗓️ Schichtplaner Pro
             <div class="main-subtitle">Effiziente Schichtplanung für Teams - Fair • Digital • Sozial</div>
         </div>
     """, unsafe_allow_html=True)
@@ -2484,16 +2485,16 @@ def main():
     
     # AWO Footer
     st.markdown("""
-        <div class="awo-footer">
+        <div class="modern-footer">
             <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
                 <span style="font-size: 2rem; margin-right: 1rem;">❤️</span>
                 <div>
-                    <div style="font-size: 1.5rem; font-weight: 700;">AWO Schichtplaner</div>
-                    <div style="font-size: 1rem; opacity: 0.9;">Effiziente Schichtplanung • Fair • Digital • Sozial</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">🗓️ Schichtplaner Pro</div>
+                    <div style="font-size: 1rem; opacity: 0.9;">Intelligente Schichtplanung • Automatisiert • Benutzerfreundlich</div>
                 </div>
             </div>
             <div style="font-size: 0.9rem; opacity: 0.8;">
-                Powered by AWO Corporate Design | Automatisch generiert
+                Moderne Lösung für effiziente Personalplanung | Automatisch generiert
             </div>
         </div>
     """, unsafe_allow_html=True)
