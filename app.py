@@ -2472,17 +2472,6 @@ def main():
         else:
             st.info("Keine Einträge für die gewählten Filter gefunden.")
     
-    # AWO Footer
-    st.markdown("""
-        <div class="modern-footer">
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: 700;">🗓️ Schichtplaner Pro</div>
-                    <div style="font-size: 1rem; opacity: 0.9;">Intelligente Schichtplanung • Automatisiert • Benutzerfreundlich</div>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
 
 def is_holiday_berlin(date_obj):
     """Prüft ob ein Datum ein gesetzlicher Feiertag in Berlin ist"""
