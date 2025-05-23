@@ -1272,19 +1272,83 @@ def main():
         
         # Zeitraum-Auswahl
         st.subheader("🗓️ Zeitraum für Schichtplan-Generierung")
-        
-        # Automatischer Zeitraum: Ab heute für 1 Jahr
-        today = datetime.now().date()
-        schedule_start_date = datetime.combine(today, datetime.min.time())
-        schedule_end_date = schedule_start_date + timedelta(days=365)
-        
-        # Berechne Anzahl Werktage
-        total_days = (schedule_end_date - schedule_start_date).days + 1
-        weekdays = sum(1 for i in range(total_days) 
-                     if (schedule_start_date + timedelta(days=i)).weekday() < 5)
-        
-        st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Jahr ab heute)")
-        st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+
+        # Zeitraum-Modus auswählen
+        time_mode = st.radio(
+            "Zeitraum-Modus:",
+            ["📅 Automatisch (1 Jahr ab heute)", "🎯 Benutzerdefiniert"],
+            help="Wählen Sie zwischen automatischem Zeitraum oder eigener Datumsauswahl"
+        )
+
+        if time_mode == "📅 Automatisch (1 Jahr ab heute)":
+            # Automatischer Zeitraum: Ab heute für 1 Jahr
+            today = datetime.now().date()
+            schedule_start_date = datetime.combine(today, datetime.min.time())
+            schedule_end_date = schedule_start_date + timedelta(days=365)
+            
+            # Berechne Anzahl Werktage
+            total_days = (schedule_end_date - schedule_start_date).days + 1
+            weekdays = sum(1 for i in range(total_days) 
+                         if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+            
+            st.info(f"📆 **Automatischer Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} (1 Jahr ab heute)")
+            st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+            schedule_valid = True
+
+        else:  # Benutzerdefiniert
+            st.markdown("**🎯 Benutzerdefinierte Zeitraumauswahl:**")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                custom_start_date = st.date_input(
+                    "Startdatum:",
+                    value=datetime.now().date(),
+                    min_value=datetime(2024, 1, 1).date(),
+                    max_value=datetime(2030, 12, 31).date(),
+                    help="Wählen Sie das Startdatum für den Schichtplan"
+                )
+            
+            with col2:
+                # Standardmäßig 1 Jahr nach Startdatum
+                default_end_date = custom_start_date + timedelta(days=365) if custom_start_date else datetime.now().date() + timedelta(days=365)
+                
+                custom_end_date = st.date_input(
+                    "Enddatum:",
+                    value=default_end_date,
+                    min_value=custom_start_date if custom_start_date else datetime(2024, 1, 1).date(),
+                    max_value=datetime(2030, 12, 31).date(),
+                    help="Wählen Sie das Enddatum für den Schichtplan"
+                )
+            
+            # Validierung der benutzerdefinierten Eingaben
+            if custom_start_date and custom_end_date:
+                if custom_end_date <= custom_start_date:
+                    st.error("❌ Das Enddatum muss nach dem Startdatum liegen!")
+                    schedule_valid = False
+                else:
+                    # Konvertiere zu datetime objects
+                    schedule_start_date = datetime.combine(custom_start_date, datetime.min.time())
+                    schedule_end_date = datetime.combine(custom_end_date, datetime.min.time())
+                    
+                    # Berechne Zeitraumdauer und Werktage
+                    duration_days = (schedule_end_date - schedule_start_date).days + 1
+                    total_days = duration_days
+                    weekdays = sum(1 for i in range(total_days) 
+                                 if (schedule_start_date + timedelta(days=i)).weekday() < 5)
+                    
+                    # Warnungen für sehr kurze oder sehr lange Zeiträume
+                    if duration_days < 30:
+                        st.warning(f"⚠️ Kurzer Zeitraum: Nur {duration_days} Tage ({weekdays} Werktage)")
+                    elif duration_days > 730:  # 2 Jahre
+                        st.warning(f"⚠️ Langer Zeitraum: {duration_days} Tage ({weekdays} Werktage) - Generierung kann länger dauern")
+                    
+                    st.success(f"✅ **Zeitraum**: {schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')} ({duration_days} Tage)")
+                    st.info(f"📊 **Werktage (Mo-Fr)**: {weekdays}")
+                    schedule_valid = True
+            else:
+                st.error("❌ Bitte wählen Sie Start- und Enddatum aus!")
+                schedule_valid = False
         
         st.divider()
         
@@ -1305,8 +1369,13 @@ def main():
         
         st.divider()
         
-        # Generierung starten
-        if st.button("🎯 Schichtplan generieren", type="primary"):
+        # Generierung starten - nur wenn Zeitraum gültig ist
+        schedule_button_disabled = False
+        if time_mode == "🎯 Benutzerdefiniert":
+            if 'schedule_valid' not in locals() or not schedule_valid:
+                schedule_button_disabled = True
+                
+        if st.button("🎯 Schichtplan generieren", type="primary", disabled=schedule_button_disabled):
             with st.spinner("Generiere optimalen Schichtplan..."):
                 schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(
                     preferences, 
