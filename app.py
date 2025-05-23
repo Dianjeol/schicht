@@ -30,22 +30,39 @@ def init_database():
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    # Tabelle für Mitarbeiterpräferenzen
+    # Tabelle für Teams/Organisationen
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS preferences (
+        CREATE TABLE IF NOT EXISTS teams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
-            preferred_days TEXT NOT NULL
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Tabelle für generierte Schichtpläne
+    # Füge MSH als Standard-Team hinzu wenn noch nicht vorhanden
+    cursor.execute('INSERT OR IGNORE INTO teams (name) VALUES (?)', ('MSH',))
+    
+    # Tabelle für Mitarbeiterpräferenzen (erweitert um team_id)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS preferences (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            preferred_days TEXT NOT NULL,
+            FOREIGN KEY (team_id) REFERENCES teams (id),
+            UNIQUE(team_id, name)
+        )
+    ''')
+    
+    # Tabelle für generierte Schichtpläne (erweitert um team_id)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS schedules (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id INTEGER NOT NULL,
             date TEXT NOT NULL,
             employee_name TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (team_id) REFERENCES teams (id)
         )
     ''')
     
@@ -59,42 +76,100 @@ def init_database():
         )
     ''')
     
-    # Tabelle für Urlaub und Nichtverfügbarkeit
+    # Tabelle für Urlaub und Nichtverfügbarkeit (erweitert um team_id)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS unavailability (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id INTEGER NOT NULL,
             name TEXT NOT NULL,
             type TEXT NOT NULL,  -- 'urlaub' oder 'wochentag'
             date TEXT,           -- Für Urlaub: YYYY-MM-DD Format
             weekday TEXT,        -- Für Wochentag: z.B. 'Montag'
             reason TEXT,         -- Beschreibung/Grund
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (team_id) REFERENCES teams (id)
         )
     ''')
+    
+    # Migration: Bestehende Daten ohne team_id zu MSH zuordnen
+    cursor.execute('SELECT id FROM teams WHERE name = ?', ('MSH',))
+    msh_team_id = cursor.fetchone()[0]
+    
+    # Migriere preferences
+    cursor.execute('SELECT COUNT(*) FROM preferences WHERE team_id IS NULL OR team_id = 0')
+    if cursor.fetchone()[0] > 0:
+        cursor.execute('UPDATE preferences SET team_id = ? WHERE team_id IS NULL OR team_id = 0', (msh_team_id,))
+    
+    # Migriere schedules
+    cursor.execute('SELECT COUNT(*) FROM schedules WHERE team_id IS NULL OR team_id = 0')
+    if cursor.fetchone()[0] > 0:
+        cursor.execute('UPDATE schedules SET team_id = ? WHERE team_id IS NULL OR team_id = 0', (msh_team_id,))
+    
+    # Migriere unavailability
+    cursor.execute('SELECT COUNT(*) FROM unavailability WHERE team_id IS NULL OR team_id = 0')
+    if cursor.fetchone()[0] > 0:
+        cursor.execute('UPDATE unavailability SET team_id = ? WHERE team_id IS NULL OR team_id = 0', (msh_team_id,))
     
     conn.commit()
     conn.close()
 
-def save_preferences(name, preferred_days):
+def get_teams():
+    """Holt alle Teams aus der Datenbank"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, name FROM teams ORDER BY name ASC')
+    teams = cursor.fetchall()
+    
+    conn.close()
+    return teams
+
+def get_team_id_by_name(team_name):
+    """Holt die Team-ID anhand des Namens"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id FROM teams WHERE name = ?', (team_name,))
+    result = cursor.fetchone()
+    
+    conn.close()
+    return result[0] if result else None
+
+def create_team(team_name):
+    """Erstellt ein neues Team"""
+    conn = sqlite3.connect('schichtplaner.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('INSERT INTO teams (name) VALUES (?)', (team_name,))
+        team_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return team_id
+    except sqlite3.IntegrityError:
+        conn.close()
+        return None  # Team existiert bereits
+
+def save_preferences(name, preferred_days, team_id):
     """Speichert Mitarbeiterpräferenzen in der Datenbank"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
     preferred_days_str = ','.join(preferred_days)
     cursor.execute('''
-        INSERT OR REPLACE INTO preferences (name, preferred_days)
-        VALUES (?, ?)
-    ''', (name, preferred_days_str))
+        INSERT OR REPLACE INTO preferences (team_id, name, preferred_days)
+        VALUES (?, ?, ?)
+    ''', (team_id, name, preferred_days_str))
     
     conn.commit()
     conn.close()
 
-def load_preferences():
-    """Lädt alle Mitarbeiterpräferenzen aus der Datenbank (alphabetisch sortiert)"""
+def load_preferences(team_id):
+    """Lädt alle Mitarbeiterpräferenzen aus der Datenbank für ein bestimmtes Team (alphabetisch sortiert)"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT name, preferred_days FROM preferences ORDER BY name ASC')
+    cursor.execute('SELECT name, preferred_days FROM preferences WHERE team_id = ? ORDER BY name ASC', (team_id,))
     results = cursor.fetchall()
     
     preferences = {}
@@ -104,22 +179,22 @@ def load_preferences():
     conn.close()
     return preferences
 
-def delete_preference(name):
+def delete_preference(name, team_id):
     """Löscht eine Mitarbeiterpräferenz aus der Datenbank"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    cursor.execute('DELETE FROM preferences WHERE name = ?', (name,))
+    cursor.execute('DELETE FROM preferences WHERE name = ? AND team_id = ?', (name, team_id))
     
     conn.commit()
     conn.close()
 
-def get_preference_by_name(name):
-    """Holt eine spezifische Präferenz nach Name"""
+def get_preference_by_name(name, team_id):
+    """Holt eine spezifische Präferenz nach Name für ein bestimmtes Team"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT preferred_days FROM preferences WHERE name = ?', (name,))
+    cursor.execute('SELECT preferred_days FROM preferences WHERE name = ? AND team_id = ?', (name, team_id))
     result = cursor.fetchone()
     
     conn.close()
@@ -127,30 +202,30 @@ def get_preference_by_name(name):
         return result[0].split(',')
     return None
 
-def save_schedule(schedule_data):
-    """Speichert den generierten Schichtplan"""
+def save_schedule(schedule_data, team_id):
+    """Speichert den generierten Schichtplan für ein bestimmtes Team"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    # Lösche alte Schichtpläne
-    cursor.execute('DELETE FROM schedules')
+    # Lösche alte Schichtpläne für dieses Team
+    cursor.execute('DELETE FROM schedules WHERE team_id = ?', (team_id,))
     
     # Speichere neuen Plan
     for date_str, employee_name in schedule_data.items():
         cursor.execute('''
-            INSERT INTO schedules (date, employee_name)
-            VALUES (?, ?)
-        ''', (date_str, employee_name))
+            INSERT INTO schedules (team_id, date, employee_name)
+            VALUES (?, ?, ?)
+        ''', (team_id, date_str, employee_name))
     
     conn.commit()
     conn.close()
 
-def load_schedule():
-    """Lädt den gespeicherten Schichtplan"""
+def load_schedule(team_id):
+    """Lädt den gespeicherten Schichtplan für ein bestimmtes Team"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT date, employee_name FROM schedules ORDER BY date')
+    cursor.execute('SELECT date, employee_name FROM schedules WHERE team_id = ? ORDER BY date', (team_id,))
     results = cursor.fetchall()
     
     schedule = {}
@@ -160,25 +235,25 @@ def load_schedule():
     conn.close()
     return schedule
 
-def save_unavailability(name, unavail_type, date=None, weekday=None, reason=""):
-    """Speichert Urlaub oder Wochentag-Nichtverfügbarkeit"""
+def save_unavailability(name, unavail_type, team_id, date=None, weekday=None, reason=""):
+    """Speichert Urlaub oder Wochentag-Nichtverfügbarkeit für ein bestimmtes Team"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
     cursor.execute('''
-        INSERT INTO unavailability (name, type, date, weekday, reason)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (name, unavail_type, date, weekday, reason))
+        INSERT INTO unavailability (team_id, name, type, date, weekday, reason)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (team_id, name, unavail_type, date, weekday, reason))
     
     conn.commit()
     conn.close()
 
-def load_unavailability():
-    """Lädt alle Urlaubs- und Nichtverfügbarkeitseinträge (alphabetisch sortiert)"""
+def load_unavailability(team_id):
+    """Lädt alle Urlaubs- und Nichtverfügbarkeitseinträge für ein bestimmtes Team (alphabetisch sortiert)"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT name, type, date, weekday, reason FROM unavailability ORDER BY name, date, weekday')
+    cursor.execute('SELECT name, type, date, weekday, reason FROM unavailability WHERE team_id = ? ORDER BY name, date, weekday', (team_id,))
     results = cursor.fetchall()
     
     conn.close()
@@ -205,7 +280,7 @@ def get_unavailability_by_id(entry_id):
     conn.close()
     return result
 
-def is_employee_unavailable(employee, date_obj):
+def is_employee_unavailable(employee, date_obj, team_id):
     """Prüft ob ein Mitarbeiter an einem bestimmten Datum nicht verfügbar ist"""
     conn = sqlite3.connect('schichtplaner.db')
     cursor = conn.cursor()
@@ -214,13 +289,13 @@ def is_employee_unavailable(employee, date_obj):
     weekday_name = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][date_obj.weekday()]
     
     # Prüfe Urlaub an diesem Datum
-    cursor.execute('SELECT id FROM unavailability WHERE name = ? AND type = "urlaub" AND date = ?', (employee, date_str))
+    cursor.execute('SELECT id FROM unavailability WHERE team_id = ? AND name = ? AND type = "urlaub" AND date = ?', (team_id, employee, date_str))
     if cursor.fetchone():
         conn.close()
         return True
     
     # Prüfe generelle Nichtverfügbarkeit an diesem Wochentag
-    cursor.execute('SELECT id FROM unavailability WHERE name = ? AND type = "wochentag" AND weekday = ?', (employee, weekday_name))
+    cursor.execute('SELECT id FROM unavailability WHERE team_id = ? AND name = ? AND type = "wochentag" AND weekday = ?', (team_id, employee, weekday_name))
     if cursor.fetchone():
         conn.close()
         return True
@@ -301,13 +376,18 @@ def cleanup_expired_sessions():
         pass
 
 # PDF-Generation-Funktionen
-def calculate_statistics_from_schedule(schedule_data):
+def calculate_statistics_from_schedule(schedule_data, team_id=None):
     """Berechnet Statistiken aus vorhandenen Schichtplan-Daten (ohne Feiertage)"""
     if not schedule_data:
         return {}, {}
     
     # Lade Präferenzen für Wunscherfüllung
-    preferences = load_preferences()
+    # Wenn team_id übergeben wird, lade team-spezifische Präferenzen
+    if team_id is not None:
+        preferences = load_preferences(team_id)
+    else:
+        # Fallback für bestehende Aufrufe ohne team_id (sollte nicht mehr vorkommen)
+        preferences = {}
     
     # Initialisiere Zähler
     assignment_count = defaultdict(int)
@@ -351,7 +431,7 @@ def calculate_statistics_from_schedule(schedule_data):
     
     return dict(assignment_count), dict(preference_stats)
 
-def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=False):
+def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=False, team_id=None):
     """Generiert ein PDF-Report des Schichtplans mit optionalen Statistiken"""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=30, bottomMargin=30)
@@ -432,7 +512,7 @@ def generate_pdf_report(schedule_data, title, weeks_data, include_statistics=Fal
         story.append(Spacer(1, 30))
         
         # Berechne Statistiken aus den Schichtplan-Daten
-        assignment_count, preference_stats = calculate_statistics_from_schedule(schedule_data)
+        assignment_count, preference_stats = calculate_statistics_from_schedule(schedule_data, team_id)
         
         if assignment_count:
             # Heading für Statistiken
@@ -552,7 +632,7 @@ def get_current_and_next_weeks(schedule_data, num_weeks=4):
     return filtered_data
 
 # Schichtplanungsalgorithmus
-def generate_fair_schedule(preferences, start_date=None, end_date=None, year=2025):
+def generate_fair_schedule(preferences, team_id, start_date=None, end_date=None, year=2025):
     """
     Generiert einen fairen Schichtplan mit User-für-User Rotation:
     1. Jeder Mitarbeiter kommt nacheinander dran (Round-Robin)
@@ -561,6 +641,7 @@ def generate_fair_schedule(preferences, start_date=None, end_date=None, year=202
     
     Args:
         preferences: Dictionary mit Mitarbeiter-Präferenzen
+        team_id: ID des Teams
         start_date: Startdatum (datetime object) - überschreibt year Parameter
         end_date: Enddatum (datetime object) - überschreibt year Parameter  
         year: Jahr für Generierung (nur verwendet wenn start_date/end_date nicht gesetzt)
@@ -606,7 +687,7 @@ def generate_fair_schedule(preferences, start_date=None, end_date=None, year=202
         # Durchsuche verfügbare Tage nach bestem Match
         for day in available_days:
             # Prüfe ob Mitarbeiter an diesem Tag verfügbar ist
-            if is_employee_unavailable(current_employee, day):
+            if is_employee_unavailable(current_employee, day, team_id):
                 continue  # Überspringe Urlaubs-/Nichtverfügbarkeitstage
                 
             weekday_name = weekday_names[day.weekday()]
@@ -1048,16 +1129,90 @@ def main():
     """, unsafe_allow_html=True)
     st.markdown("*Berücksichtigt Feiertage für Berlin*")
     
-    # Sidebar für Navigation
+    # Sidebar für Team-Auswahl und Navigation
+    st.sidebar.title("Team/Organisation")
+    
+    # Lade verfügbare Teams
+    teams = get_teams()
+    team_options = [team[1] for team in teams] + ["+ neues Team"]
+    
+    # Team-Auswahl
+    if 'selected_team' not in st.session_state:
+        st.session_state.selected_team = "MSH"
+    
+    selected_team = st.sidebar.selectbox(
+        "Team auswählen:",
+        team_options,
+        index=team_options.index(st.session_state.selected_team) if st.session_state.selected_team in team_options else 0,
+        help="Wählen Sie Ihr Team oder erstellen Sie ein neues"
+    )
+    
+    # Handle neues Team erstellen
+    if selected_team == "+ neues Team":
+        st.sidebar.markdown("**Neues Team erstellen:**")
+        new_team_name = st.sidebar.text_input(
+            "Team-Name:",
+            placeholder="z.B. Facility Management",
+            key="new_team_input"
+        )
+        
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            if st.sidebar.button("Erstellen", type="primary"):
+                if new_team_name.strip():
+                    team_id = create_team(new_team_name.strip())
+                    if team_id:
+                        st.sidebar.success(f"✅ Team '{new_team_name.strip()}' erstellt!")
+                        st.session_state.selected_team = new_team_name.strip()
+                        st.rerun()
+                    else:
+                        st.sidebar.error("❌ Team existiert bereits!")
+                else:
+                    st.sidebar.error("❌ Bitte Team-Name eingeben!")
+        
+        with col2:
+            if st.sidebar.button("Abbrechen", type="secondary"):
+                st.rerun()
+        
+        # Zeige Teams-Übersicht bei neuem Team
+        if teams:
+            st.sidebar.markdown("**Verfügbare Teams:**")
+            for team_id, team_name in teams:
+                st.sidebar.text(f"• {team_name}")
+    else:
+        # Normaler Team-Betrieb
+        if selected_team != st.session_state.selected_team:
+            st.session_state.selected_team = selected_team
+            st.rerun()
+        
+        # Hole Team-ID
+        current_team_id = get_team_id_by_name(selected_team)
+        if current_team_id is None:
+            st.error(f"❌ Team '{selected_team}' nicht gefunden!")
+            return
+        
+        st.sidebar.success(f"📋 Aktives Team: **{selected_team}**")
+    
+    st.sidebar.divider()
     st.sidebar.title("Navigation")
     mode = st.sidebar.radio(
         "Wählen Sie eine Option:",
         ["Personen eingeben", "Urlaub eintragen", "Schichtplan generieren", "Manuelle Änderungen", "Plan anzeigen"]
     )
     
+    # Stelle sicher, dass wir eine gültige Team-ID haben
+    if selected_team == "+ neues Team":
+        st.warning("⚠️ Bitte erstellen Sie zuerst ein neues Team oder wählen Sie ein bestehendes Team aus.")
+        return
+    
+    current_team_id = get_team_id_by_name(selected_team)
+    if current_team_id is None:
+        st.error(f"❌ Team '{selected_team}' nicht gefunden!")
+        return
+    
     if mode == "Personen eingeben":
-        # Lade vorhandene Personen
-        existing_prefs = load_preferences()
+        # Lade vorhandene Personen für das aktuelle Team
+        existing_prefs = load_preferences(current_team_id)
         
         # Zeige bereits eingegebene Personen mit Bearbeitungsoptionen
         if existing_prefs:
@@ -1089,7 +1244,7 @@ def main():
             prefs_df = pd.DataFrame(prefs_list)
             st.dataframe(prefs_df, use_container_width=True, hide_index=True)
             
-            st.write(f"**Gesamt**: {len(existing_prefs)} Mitarbeitende")
+            st.write(f"**Team '{selected_team}'**: {len(existing_prefs)} Mitarbeitende")
         
         st.divider()
         
@@ -1159,11 +1314,11 @@ def main():
                 if st.button("💾 Änderungen speichern", type="primary"):
                     # Lösche alte Person wenn Name geändert wurde
                     if edit_name != st.session_state.edit_name:
-                        delete_preference(st.session_state.edit_name)
+                        delete_preference(st.session_state.edit_name, current_team_id)
                     
                     # Speichere neue/geänderte Person
                     new_prefs = [edit_first, edit_second, edit_third, edit_fourth, edit_fifth]
-                    save_preferences(edit_name, new_prefs)
+                    save_preferences(edit_name, new_prefs, current_team_id)
                     
                     st.success(f"✅ Person **{edit_name}** wurde aktualisiert!")
                     
@@ -1320,8 +1475,8 @@ def main():
                 else:
                     # Alles korrekt - speichern
                     preferred_days = [first_choice, second_choice, third_choice, fourth_choice, fifth_choice]
-                    save_preferences(name.strip(), preferred_days)
-                    st.success(f"✅ Person **{name.strip()}** erfolgreich gespeichert! 🎉")
+                    save_preferences(name.strip(), preferred_days, current_team_id)
+                    st.success(f"✅ Person **{name.strip()}** erfolgreich im Team **{selected_team}** gespeichert! 🎉")
                     st.success(f"🎯 **Ihre Prioritäten**: 🥇 {first_choice} | 🥈 {second_choice} | 🥉 {third_choice} | 🏅 {fourth_choice} | 🏅 {fifth_choice}")
                     st.balloons()  # Kleine Feier! 🎈
                     # Reset das Formular durch Erhöhung des Triggers
@@ -1361,7 +1516,7 @@ def main():
                 if delete_name != "Keine Auswahl":
                     if st.button(f"🗑️ {delete_name} löschen", type="secondary"):
                         if st.session_state.get("confirm_delete", False):
-                            delete_preference(delete_name)
+                            delete_preference(delete_name, current_team_id)
                             st.success(f"✅ Person **{delete_name}** wurde gelöscht.")
                             if "confirm_delete" in st.session_state:
                                 del st.session_state["confirm_delete"]
@@ -1373,14 +1528,14 @@ def main():
     elif mode == "Urlaub eintragen":
         st.header("🏖️ Urlaub und Nichtverfügbarkeit eintragen")
         
-        preferences = load_preferences()
+        preferences = load_preferences(current_team_id)
         
         if len(preferences) == 0:
-            st.warning("Noch keine Personen eingegeben. Bitte gehen Sie zuerst zu 'Personen eingeben'.")
+            st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben. Bitte gehen Sie zuerst zu 'Personen eingeben'.")
             return
         
-        # Lade vorhandene Einträge
-        unavail_entries = load_unavailability()
+        # Lade vorhandene Einträge für das aktuelle Team
+        unavail_entries = load_unavailability(current_team_id)
         
         # Zeige bereits eingetragene Urlaube/Nichtverfügbarkeiten
         if unavail_entries:
@@ -1409,7 +1564,7 @@ def main():
             entries_df = pd.DataFrame(entries_list)
             st.dataframe(entries_df[["Name", "Art", "Grund"]], use_container_width=True, hide_index=True)
             
-            st.write(f"**Gesamt**: {len(unavail_entries)} Einträge")
+            st.write(f"**Team '{selected_team}'**: {len(unavail_entries)} Einträge")
         
         st.divider()
         
@@ -1485,10 +1640,11 @@ def main():
                         save_unavailability(
                             unavail_name, 
                             "urlaub", 
+                            current_team_id,
                             date=unavail_date.strftime('%Y-%m-%d'),
                             reason=unavail_reason
                         )
-                        st.success(f"✅ Urlaub für **{unavail_name}** am {unavail_date.strftime('%d.%m.%Y')} eingetragen! 🏖️")
+                        st.success(f"✅ Urlaub für **{unavail_name}** am {unavail_date.strftime('%d.%m.%Y')} im Team **{selected_team}** eingetragen! 🏖️")
                         # Reset das Formular
                         st.session_state.unavail_form_reset_trigger += 1
                         st.rerun()
@@ -1502,10 +1658,11 @@ def main():
                     save_unavailability(
                         unavail_name,
                         "wochentag",
+                        current_team_id,
                         weekday=unavail_weekday,
                         reason=unavail_reason
                     )
-                    st.success(f"✅ **{unavail_name}** ist ab sofort nie am {unavail_weekday} verfügbar! ⛔")
+                    st.success(f"✅ **{unavail_name}** ist im Team **{selected_team}** ab sofort nie am {unavail_weekday} verfügbar! ⛔")
                     # Reset das Formular
                     st.session_state.unavail_form_reset_trigger += 1
                     st.rerun()
@@ -1547,7 +1704,7 @@ def main():
                         # Lösche den Eintrag - wir brauchen die echte DB ID
                         conn = sqlite3.connect('schichtplaner.db')
                         cursor = conn.cursor()
-                        cursor.execute('SELECT id FROM unavailability ORDER BY name, date, weekday LIMIT 1 OFFSET ?', (selected_index,))
+                        cursor.execute('SELECT id FROM unavailability WHERE team_id = ? ORDER BY name, date, weekday LIMIT 1 OFFSET ?', (current_team_id, selected_index))
                         result = cursor.fetchone()
                         if result:
                             entry_id = result[0]
@@ -1565,13 +1722,13 @@ def main():
     elif mode == "Schichtplan generieren":
         st.header("⚙️ Schichtplan generieren")
         
-        preferences = load_preferences()
+        preferences = load_preferences(current_team_id)
         
         if len(preferences) == 0:
-            st.warning("Noch keine Personen eingegeben. Bitte gehen Sie zu 'Personen eingeben'.")
+            st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben. Bitte gehen Sie zu 'Personen eingeben'.")
             return
         
-        st.write(f"**Anzahl eingetragener Mitarbeitender**: {len(preferences)}")
+        st.write(f"**Team '{selected_team}'**: {len(preferences)} Mitarbeitende")
         
         st.divider()
         
@@ -1680,7 +1837,7 @@ def main():
         st.divider()
         
         # Übersicht der Personen (alphabetisch sortiert)
-        st.subheader("Übersicht der Personen (alphabetisch sortiert)")
+        st.subheader(f"Übersicht Team '{selected_team}' (alphabetisch sortiert)")
         prefs_df = pd.DataFrame([
             {
                 "Name": name, 
@@ -1706,16 +1863,17 @@ def main():
             with st.spinner("Generiere optimalen Schichtplan..."):
                 schedule, assignment_count, preference_score, preference_stats = generate_fair_schedule(
                     preferences, 
+                    current_team_id,
                     start_date=schedule_start_date, 
                     end_date=schedule_end_date
                 )
-                save_schedule(schedule)
+                save_schedule(schedule, current_team_id)
             
                 # Berechne Anzahl generierter Schichten
                 num_shifts = len(schedule)
                 period_text = f"{schedule_start_date.strftime('%d.%m.%Y')} - {schedule_end_date.strftime('%d.%m.%Y')}"
                 
-                st.success(f"✅ Schichtplan erfolgreich generiert!")
+                st.success(f"✅ Schichtplan für Team **{selected_team}** erfolgreich generiert!")
                 st.info(f"📅 **Zeitraum**: {period_text} | **Schichten**: {num_shifts}")
             
             # Statistiken anzeigen
@@ -1785,15 +1943,15 @@ def main():
     elif mode == "Manuelle Änderungen":
         st.header("✏️ Manuelle Änderungen")
         
-        schedule = load_schedule()
+        schedule = load_schedule(current_team_id)
         
         if not schedule:
-            st.warning("Noch kein Schichtplan generiert. Bitte gehen Sie zu 'Schichtplan generieren'.")
+            st.warning(f"Noch kein Schichtplan für Team '{selected_team}' generiert. Bitte gehen Sie zu 'Schichtplan generieren'.")
             return
         
-        preferences = load_preferences()
+        preferences = load_preferences(current_team_id)
         if not preferences:
-            st.warning("Keine Mitarbeitenden definiert. Bitte gehen Sie zu 'Personen eingeben'.")
+            st.warning(f"Keine Mitarbeitenden im Team '{selected_team}' definiert. Bitte gehen Sie zu 'Personen eingeben'.")
             return
         
         st.info("💡 Hier können Sie einzelne Tage im Schichtplan tauschen oder ändern.")
@@ -1851,11 +2009,11 @@ def main():
                     st.warning(f"⚠️ Sie sind dabei, {current_employee} durch {new_employee} zu ersetzen.")
                     
                     # Prüfe Verfügbarkeit des neuen Mitarbeiters
-                    if is_employee_unavailable(new_employee, date_obj):
+                    if is_employee_unavailable(new_employee, date_obj, current_team_id):
                         st.error(f"❌ {new_employee} ist an diesem Tag nicht verfügbar (Urlaub oder Wochentag-Sperre)!")
                     
                     unavailable_reasons = []
-                    if is_employee_unavailable(new_employee, date_obj):
+                    if is_employee_unavailable(new_employee, date_obj, current_team_id):
                         unavailable_reasons.append("Urlaub oder Wochentag-Sperre")
                     if is_holiday_berlin(date_obj):
                         unavailable_reasons.append("Feiertag in Berlin")
@@ -1870,7 +2028,7 @@ def main():
                             # Aktualisiere den Schedule
                             updated_schedule = schedule.copy()
                             updated_schedule[selected_date_str] = new_employee
-                            save_schedule(updated_schedule)
+                            save_schedule(updated_schedule, current_team_id)
                             st.success(f"✅ Tag erfolgreich geändert: {date_obj.strftime('%d.%m.%Y')} → {new_employee}")
                             st.rerun()
                     
@@ -1940,7 +2098,7 @@ def main():
                 
                 # Prüfe ersten Mitarbeiter (second_employee) am ersten Tag (first_date_obj)
                 unavailable_reasons_first = []
-                if is_employee_unavailable(second_employee, first_date_obj):
+                if is_employee_unavailable(second_employee, first_date_obj, current_team_id):
                     unavailable_reasons_first.append("Urlaub/Wochentag-Sperre")
                 if is_holiday_berlin(first_date_obj):
                     unavailable_reasons_first.append("Feiertag")
@@ -1951,7 +2109,7 @@ def main():
                 
                 # Prüfe zweiten Mitarbeiter (first_employee) am zweiten Tag (second_date_obj)
                 unavailable_reasons_second = []
-                if is_employee_unavailable(first_employee, second_date_obj):
+                if is_employee_unavailable(first_employee, second_date_obj, current_team_id):
                     unavailable_reasons_second.append("Urlaub/Wochentag-Sperre")
                 if is_holiday_berlin(second_date_obj):
                     unavailable_reasons_second.append("Feiertag")
@@ -1971,7 +2129,7 @@ def main():
                         updated_schedule = schedule.copy()
                         updated_schedule[first_date_str] = second_employee
                         updated_schedule[second_date_str] = first_employee
-                        save_schedule(updated_schedule)
+                        save_schedule(updated_schedule, current_team_id)
                         st.success(f"✅ Tausch erfolgreich durchgeführt!")
                         st.rerun()
                 
@@ -2085,10 +2243,10 @@ def main():
         
         st.header("📋 Generierter Schichtplan")
         
-        schedule = load_schedule()
+        schedule = load_schedule(current_team_id)
         
         if not schedule:
-            st.warning("Noch kein Schichtplan generiert. Bitte gehen Sie zu 'Schichtplan generieren'.")
+            st.warning(f"Noch kein Schichtplan für Team '{selected_team}' generiert. Bitte gehen Sie zu 'Schichtplan generieren'.")
             return
         
         # Filter-Optionen
@@ -2193,7 +2351,7 @@ def main():
             # Erstelle DataFrame
             df = pd.DataFrame(sorted_data)
             
-            st.subheader(f"📅 Schichtplan Kalenderwochen-Ansicht ({len(filtered_schedule)} Schichten)")
+            st.subheader(f"📅 Schichtplan Team '{selected_team}' Kalenderwochen-Ansicht ({len(filtered_schedule)} Schichten)")
             
             # CSS für bessere Darstellung der Kalenderwochen
             st.markdown("""
@@ -2259,7 +2417,7 @@ def main():
                 st.download_button(
                     label="📊 Kalenderwochen-Plan (CSV)",
                     data=weekly_csv,
-                    file_name=f"schichtplan_kalenderwochen_{datetime.now().year}.csv",
+                    file_name=f"schichtplan_{selected_team}_kalenderwochen_{datetime.now().year}.csv",
                     mime="text/csv"
                 )
                 
@@ -2285,7 +2443,7 @@ def main():
                     st.download_button(
                         label="📋 Listen-Plan (CSV)",
                         data=list_csv,
-                        file_name=f"schichtplan_liste_{datetime.now().year}.csv",
+                        file_name=f"schichtplan_{selected_team}_liste_{datetime.now().year}.csv",
                         mime="text/csv"
                     )
             
@@ -2307,14 +2465,15 @@ def main():
                     
                     full_period_pdf = generate_pdf_report(
                         filtered_schedule, 
-                        f"Schichtplan {period_text} ({len(sorted_data)} Kalenderwochen)",
+                        f"Team {selected_team} - Schichtplan {period_text} ({len(sorted_data)} Kalenderwochen)",
                         sorted_data,
-                        include_statistics=True  # Für Zeitraum-PDF Statistiken hinzufügen
+                        include_statistics=True,  # Für Zeitraum-PDF Statistiken hinzufügen
+                        team_id=current_team_id
                     )
                     st.download_button(
                         label="🗓️ Gesamter Zeitraum (PDF)",
                         data=full_period_pdf.getvalue(),
-                        file_name=f"schichtplan_{filename_period}.pdf",
+                        file_name=f"schichtplan_{selected_team}_{filename_period}.pdf",
                         mime="application/pdf"
                     )
                 except Exception as e:
@@ -2326,7 +2485,7 @@ def main():
                     current_week = current_date.isocalendar()[1]
                     
                     # Hole original schedule (nicht gefiltert) für aktuelle Wochen
-                    original_schedule = load_schedule()
+                    original_schedule = load_schedule(current_team_id)
                     current_weeks_schedule = get_current_and_next_weeks(original_schedule, 4)
                     
                     if current_weeks_schedule:
@@ -2387,13 +2546,14 @@ def main():
                         
                         current_weeks_pdf = generate_pdf_report(
                             current_weeks_schedule,
-                            f"Aktuelle und nächste 3 Kalenderwochen (KW {current_week}-{current_week+3})",
-                            sorted_data_current
+                            f"Team {selected_team} - Aktuelle und nächste 3 Kalenderwochen (KW {current_week}-{current_week+3})",
+                            sorted_data_current,
+                            team_id=current_team_id
                         )
                         st.download_button(
                             label="📅 Nächste 4 Wochen (PDF)",
                             data=current_weeks_pdf.getvalue(),
-                            file_name=f"schichtplan_naechste_4kw.pdf",
+                            file_name=f"schichtplan_{selected_team}_naechste_4kw.pdf",
                             mime="application/pdf"
                         )
                     else:
@@ -2406,14 +2566,14 @@ def main():
             
             # Statistiken anzeigen
             st.divider()
-            st.subheader("📊 Statistiken zum angezeigten Zeitraum")
+            st.subheader(f"📊 Statistiken Team '{selected_team}' zum angezeigten Zeitraum")
             
             # Lade Präferenzen für Statistiken
-            preferences = load_preferences()
+            preferences = load_preferences(current_team_id)
             
             if preferences:
                 # Berechne Statistiken basierend auf dem gefilterten Schedule
-                assignment_count, preference_stats = calculate_statistics_from_schedule(filtered_schedule)
+                assignment_count, preference_stats = calculate_statistics_from_schedule(filtered_schedule, current_team_id)
                 
                 if assignment_count:
                     col1, col2 = st.columns([1, 3])
