@@ -1226,7 +1226,7 @@ def main():
         with col1:
             st.markdown("")  # Leer für Platz
         with col2:
-            if st.button("📁 Daten importieren/exportieren", type="secondary", use_container_width=True, help="Konfiguration importieren oder exportieren"):
+            if st.button("📁 Daten Import/Export", type="secondary", use_container_width=True, help="Konfiguration importieren oder exportieren"):
                 st.session_state.show_import_export = not st.session_state.show_import_export
         
         # Import/Export-Bereich (expandable)
