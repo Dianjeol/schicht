@@ -1215,13 +1215,16 @@ def main():
         return
     
     if mode == "Personen eingeben":
+        # Reset Import/Export-Bereich (immer geschlossen beim Neuaufruf)
+        st.session_state.show_import_export = False
+        
         # Dezenter Link für Import/Export
         st.markdown("---")
-        col1, col2 = st.columns([3, 1])
+        col1, col2 = st.columns([4, 1])
         with col1:
             st.markdown("")  # Leer für Platz
         with col2:
-            if st.button("📁 Daten importieren/exportieren", type="secondary", use_container_width=True):
+            if st.button("📁 Daten import/export", type="secondary", use_container_width=True, help="Konfiguration importieren oder exportieren"):
                 st.session_state.show_import_export = not st.session_state.show_import_export
         
         # Import/Export-Bereich (expandable)
@@ -1229,47 +1232,8 @@ def main():
             with st.expander("💾 Konfiguration Import/Export", expanded=True):
                 st.info("💡 Hier können Sie die aktuelle Konfiguration als Textdatei exportieren oder eine neue Konfiguration importieren.")
                 
-                # Tabs für Export und Import
-                tab_export, tab_import = st.tabs(["📤 Export", "📥 Import"])
-                
-                with tab_export:
-                    st.subheader("📤 Konfiguration exportieren")
-                    
-                    preferences = load_preferences(current_team_id)
-                    
-                    if not preferences:
-                        st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben.")
-                    else:
-                        st.write(f"**Team '{selected_team}'**: {len(preferences)} Mitarbeitende")
-                        
-                        # Zeige Vorschau der zu exportierenden Daten
-                        st.markdown("**Vorschau der Export-Daten:**")
-                        export_text = export_preferences_to_text(current_team_id)
-                        
-                        if export_text:
-                            st.code(export_text, language="text")
-                            
-                            st.markdown("**Format-Erklärung:**")
-                            st.markdown("- Jede Zeile = Ein Mitarbeiter")
-                            st.markdown("- Format: `Name,1,2,3,4,5`")
-                            st.markdown("- Die Zahlen 1-5 entsprechen den Prioritäten für Mo, Di, Mi, Do, Fr")
-                            st.markdown("- Beispiel: `Thomas,3,2,1,4,5` = Mittwoch ist 1. Priorität, Dienstag 2. Priorität, etc.")
-                            
-                            # Download Button
-                            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            filename = f"schichtplaner_konfiguration_{selected_team}_{current_date}.txt"
-                            
-                            st.download_button(
-                                label="💾 Konfiguration als Textdatei herunterladen",
-                                data=export_text,
-                                file_name=filename,
-                                mime="text/plain",
-                                type="primary"
-                            )
-                            
-                            st.success("✅ Klicken Sie auf den Button oben, um die Datei herunterzuladen.")
-                        else:
-                            st.error("❌ Fehler beim Erstellen der Export-Daten.")
+                # Tabs für Import und Export (Import zuerst)
+                tab_import, tab_export = st.tabs(["📥 Import", "📤 Export"])
                 
                 with tab_import:
                     st.subheader("📥 Konfiguration importieren")
@@ -1352,6 +1316,45 @@ Max,2,1,4,3,5"""
                                 
                         except Exception as e:
                             st.error(f"❌ Fehler beim Import: {str(e)}")
+                
+                with tab_export:
+                    st.subheader("📤 Konfiguration exportieren")
+                    
+                    preferences = load_preferences(current_team_id)
+                    
+                    if not preferences:
+                        st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben.")
+                    else:
+                        st.write(f"**Team '{selected_team}'**: {len(preferences)} Mitarbeitende")
+                        
+                        # Zeige Vorschau der zu exportierenden Daten
+                        st.markdown("**Vorschau der Export-Daten:**")
+                        export_text = export_preferences_to_text(current_team_id)
+                        
+                        if export_text:
+                            st.code(export_text, language="text")
+                            
+                            st.markdown("**Format-Erklärung:**")
+                            st.markdown("- Jede Zeile = Ein Mitarbeiter")
+                            st.markdown("- Format: `Name,1,2,3,4,5`")
+                            st.markdown("- Die Zahlen 1-5 entsprechen den Prioritäten für Mo, Di, Mi, Do, Fr")
+                            st.markdown("- Beispiel: `Thomas,3,2,1,4,5` = Mittwoch ist 1. Priorität, Dienstag 2. Priorität, etc.")
+                            
+                            # Download Button
+                            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"schichtplaner_konfiguration_{selected_team}_{current_date}.txt"
+                            
+                            st.download_button(
+                                label="💾 Konfiguration als Textdatei herunterladen",
+                                data=export_text,
+                                file_name=filename,
+                                mime="text/plain",
+                                type="primary"
+                            )
+                            
+                            st.success("✅ Klicken Sie auf den Button oben, um die Datei herunterzuladen.")
+                        else:
+                            st.error("❌ Fehler beim Erstellen der Export-Daten.")
         
         st.markdown("---")
         
