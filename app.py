@@ -1215,8 +1215,10 @@ def main():
         return
     
     if mode == "Personen eingeben":
-        # Reset Import/Export-Bereich (immer geschlossen beim Neuaufruf)
-        st.session_state.show_import_export = False
+        # Reset Import/Export-Bereich nur beim ersten Aufruf des Tabs
+        if 'current_mode' not in st.session_state or st.session_state.current_mode != "Personen eingeben":
+            st.session_state.show_import_export = False
+            st.session_state.current_mode = "Personen eingeben"
         
         # Dezenter Link für Import/Export
         st.markdown("---")
@@ -1224,7 +1226,7 @@ def main():
         with col1:
             st.markdown("")  # Leer für Platz
         with col2:
-            if st.button("📁 Daten import/export", type="secondary", use_container_width=True, help="Konfiguration importieren oder exportieren"):
+            if st.button("📁 Daten importieren/exportieren", type="secondary", use_container_width=True, help="Konfiguration importieren oder exportieren"):
                 st.session_state.show_import_export = not st.session_state.show_import_export
         
         # Import/Export-Bereich (expandable)
@@ -1673,6 +1675,9 @@ Max,2,1,4,3,5"""
                             st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
     
     elif mode == "Urlaub eintragen":
+        # Setze current_mode für korrekte Navigation
+        st.session_state.current_mode = "Urlaub eintragen"
+        
         st.header("🏖️ Urlaub und Nichtverfügbarkeit eintragen")
         
         preferences = load_preferences(current_team_id)
@@ -1867,6 +1872,9 @@ Max,2,1,4,3,5"""
                         st.warning(f"⚠️ Klicken Sie erneut, um den Eintrag endgültig zu löschen!")
     
     elif mode == "Schichtplan generieren":
+        # Setze current_mode für korrekte Navigation
+        st.session_state.current_mode = "Schichtplan generieren"
+        
         st.header("⚙️ Schichtplan generieren")
         
         preferences = load_preferences(current_team_id)
@@ -2088,6 +2096,9 @@ Max,2,1,4,3,5"""
             st.info("💡 Der Plan wurde gespeichert und kann unter 'Plan anzeigen' eingesehen werden.")
     
     elif mode == "Manuelle Änderungen":
+        # Setze current_mode für korrekte Navigation
+        st.session_state.current_mode = "Manuelle Änderungen"
+        
         st.header("✏️ Manuelle Änderungen")
         
         schedule = load_schedule(current_team_id)
@@ -2371,6 +2382,9 @@ Max,2,1,4,3,5"""
             st.info("Keine Daten für die nächsten 4 Wochen verfügbar.")
 
     elif mode == "Plan anzeigen":
+        # Setze current_mode für korrekte Navigation
+        st.session_state.current_mode = "Plan anzeigen"
+        
         # Automatisch zum Seitenanfang scrollen
         st.markdown("""
             <style>
