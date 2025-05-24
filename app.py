@@ -1197,7 +1197,7 @@ def main():
     st.sidebar.title("Navigation")
     mode = st.sidebar.radio(
         "Wählen Sie eine Option:",
-        ["Personen eingeben", "Urlaub eintragen", "Schichtplan generieren", "Manuelle Änderungen", "Plan anzeigen"]
+        ["Personen eingeben", "Konfiguration Import/Export", "Urlaub eintragen", "Schichtplan generieren", "Manuelle Änderungen", "Plan anzeigen"]
     )
     
     # Stelle sicher, dass wir eine gültige Team-ID haben
@@ -1524,6 +1524,132 @@ def main():
                         else:
                             st.session_state.confirm_delete = True
                             st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
+    
+    elif mode == "Konfiguration Import/Export":
+        st.header("💾 Konfiguration Import/Export")
+        
+        st.info("💡 Hier können Sie die aktuelle Konfiguration als Textdatei exportieren oder eine neue Konfiguration importieren.")
+        
+        # Tabs für Export und Import
+        tab_export, tab_import = st.tabs(["📤 Export", "📥 Import"])
+        
+        with tab_export:
+            st.subheader("📤 Konfiguration exportieren")
+            
+            preferences = load_preferences(current_team_id)
+            
+            if not preferences:
+                st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben. Bitte gehen Sie zuerst zu 'Personen eingeben'.")
+            else:
+                st.write(f"**Team '{selected_team}'**: {len(preferences)} Mitarbeitende")
+                
+                # Zeige Vorschau der zu exportierenden Daten
+                st.subheader("Vorschau der Export-Daten:")
+                export_text = export_preferences_to_text(current_team_id)
+                
+                if export_text:
+                    st.code(export_text, language="text")
+                    
+                    st.markdown("**Format-Erklärung:**")
+                    st.markdown("- Jede Zeile = Ein Mitarbeiter")
+                    st.markdown("- Format: `Name,1,2,3,4,5`")
+                    st.markdown("- Die Zahlen 1-5 entsprechen den Prioritäten für Mo, Di, Mi, Do, Fr")
+                    st.markdown("- Beispiel: `Thomas,3,2,1,4,5` = Mittwoch ist 1. Priorität, Dienstag 2. Priorität, etc.")
+                    
+                    # Download Button
+                    current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"schichtplaner_konfiguration_{selected_team}_{current_date}.txt"
+                    
+                    st.download_button(
+                        label="💾 Konfiguration als Textdatei herunterladen",
+                        data=export_text,
+                        file_name=filename,
+                        mime="text/plain",
+                        type="primary"
+                    )
+                    
+                    st.success("✅ Klicken Sie auf den Button oben, um die Datei herunterzuladen.")
+                else:
+                    st.error("❌ Fehler beim Erstellen der Export-Daten.")
+        
+        with tab_import:
+            st.subheader("📥 Konfiguration importieren")
+            
+            st.markdown("**Dateiformat:**")
+            st.markdown("- Eine Zeile pro Mitarbeiter")
+            st.markdown("- Format: `Name,1,2,3,4,5`")
+            st.markdown("- Die Zahlen 1-5 sind die Prioritäten für Mo, Di, Mi, Do, Fr")
+            st.markdown("- Jede Priorität 1-5 muss genau einmal verwendet werden")
+            
+            st.markdown("**Beispiel-Datei:**")
+            example_text = """Thomas,3,2,1,4,5
+Anna,1,3,5,2,4
+Max,2,1,4,3,5"""
+            st.code(example_text, language="text")
+            
+            # Datei-Upload
+            uploaded_file = st.file_uploader(
+                "Textdatei mit Konfiguration auswählen:",
+                type=['txt'],
+                help="Wählen Sie eine Textdatei mit der gewünschten Konfiguration aus"
+            )
+            
+            # Import-Optionen
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                import_mode = st.radio(
+                    "Import-Modus:",
+                    ["➕ Zu bestehenden Personen hinzufügen", "🔄 Alle bestehenden Personen überschreiben"],
+                    help="Wählen Sie, ob bestehende Daten ergänzt oder ersetzt werden sollen"
+                )
+            
+            with col2:
+                if st.button("📋 Vorschau aus Upload erstellen", disabled=uploaded_file is None):
+                    if uploaded_file:
+                        try:
+                            file_content = uploaded_file.read().decode("utf-8")
+                            st.text_area("Datei-Inhalt:", file_content, height=200, disabled=True)
+                        except Exception as e:
+                            st.error(f"❌ Fehler beim Lesen der Datei: {str(e)}")
+            
+            # Import durchführen
+            if uploaded_file and st.button("🚀 Import starten", type="primary"):
+                try:
+                    file_content = uploaded_file.read().decode("utf-8")
+                    overwrite = import_mode == "🔄 Alle bestehenden Personen überschreiben"
+                    
+                    success, message = import_preferences_from_text(file_content, current_team_id, overwrite)
+                    
+                    if success:
+                        st.success(f"✅ {message}")
+                        st.balloons()
+                        
+                        # Zeige importierte Daten
+                        updated_preferences = load_preferences(current_team_id)
+                        if updated_preferences:
+                            st.subheader("Importierte Konfiguration:")
+                            prefs_list = []
+                            for name, days in updated_preferences.items():
+                                if len(days) >= 5:
+                                    prefs_list.append({
+                                        "Name": name,
+                                        "🥇 1. Wahl": days[0],
+                                        "🥈 2. Wahl": days[1], 
+                                        "🥉 3. Wahl": days[2],
+                                        "🏅 4. Wahl": days[3],
+                                        "🏅 5. Wahl": days[4]
+                                    })
+                            
+                            if prefs_list:
+                                prefs_df = pd.DataFrame(prefs_list)
+                                st.dataframe(prefs_df, use_container_width=True, hide_index=True)
+                        
+                    else:
+                        st.error(f"❌ {message}")
+                        
+                except Exception as e:
+                    st.error(f"❌ Fehler beim Import: {str(e)}")
     
     elif mode == "Urlaub eintragen":
         st.header("🏖️ Urlaub und Nichtverfügbarkeit eintragen")
@@ -2660,6 +2786,99 @@ def count_working_days(start_date, end_date):
                 count += 1
         current_date += timedelta(days=1)
     return count
+
+def export_preferences_to_text(team_id):
+    """Exportiert die Präferenzen als Text im Format 'Name,1,2,3,4,5' wobei die Zahlen die Prioritäten für Mo-Fr darstellen"""
+    preferences = load_preferences(team_id)
+    if not preferences:
+        return ""
+    
+    weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
+    lines = []
+    
+    for name in sorted(preferences.keys()):  # Alphabetische Sortierung
+        user_prefs = preferences[name]
+        if len(user_prefs) >= 5:
+            # Erstelle Prioritäten-Array: Tag -> Priorität (1-5)
+            priorities = [0] * 5  # Mo,Di,Mi,Do,Fr
+            for prio_index, day in enumerate(user_prefs):
+                if day in weekdays:
+                    day_index = weekdays.index(day)
+                    priorities[day_index] = prio_index + 1  # 1-basierte Priorität
+            
+            # Erstelle Zeile: Name,1,2,3,4,5
+            line = f"{name},{','.join(map(str, priorities))}"
+            lines.append(line)
+    
+    return '\n'.join(lines)
+
+def import_preferences_from_text(text_content, team_id, overwrite=False):
+    """Importiert Präferenzen aus Text im Format 'Name,1,2,3,4,5'"""
+    if not text_content.strip():
+        return False, "Leere Datei oder ungültiger Inhalt"
+    
+    weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']
+    imported_count = 0
+    errors = []
+    
+    # Lösche alle bestehenden Präferenzen wenn Überschreiben gewählt
+    if overwrite:
+        conn = sqlite3.connect('schichtplaner.db')
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM preferences WHERE team_id = ?', (team_id,))
+        conn.commit()
+        conn.close()
+    
+    lines = text_content.strip().split('\n')
+    for line_num, line in enumerate(lines, 1):
+        line = line.strip()
+        if not line:
+            continue
+        
+        parts = line.split(',')
+        if len(parts) != 6:  # Name + 5 Prioritäten
+            errors.append(f"Zeile {line_num}: Falsche Anzahl von Werten (erwartet: Name,1,2,3,4,5)")
+            continue
+        
+        name = parts[0].strip()
+        if not name:
+            errors.append(f"Zeile {line_num}: Kein Name angegeben")
+            continue
+        
+        try:
+            # Parse Prioritäten
+            priorities = [int(p.strip()) for p in parts[1:]]
+        except ValueError:
+            errors.append(f"Zeile {line_num}: Ungültige Prioritätswerte (müssen Zahlen 1-5 sein)")
+            continue
+        
+        # Validiere Prioritäten
+        if not all(1 <= p <= 5 for p in priorities):
+            errors.append(f"Zeile {line_num}: Prioritäten müssen zwischen 1 und 5 liegen")
+            continue
+        
+        if len(set(priorities)) != 5:
+            errors.append(f"Zeile {line_num}: Alle Prioritäten 1-5 müssen genau einmal verwendet werden")
+            continue
+        
+        # Konvertiere Prioritäten zu Wochentag-Liste
+        # priorities[i] = Priorität für weekdays[i]
+        day_priority_pairs = [(priorities[i], weekdays[i]) for i in range(5)]
+        day_priority_pairs.sort()  # Sortiere nach Priorität
+        preferred_days = [day for _, day in day_priority_pairs]
+        
+        # Speichere Präferenz
+        try:
+            save_preferences(name, preferred_days, team_id)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Zeile {line_num}: Fehler beim Speichern von {name}: {str(e)}")
+    
+    if errors:
+        error_msg = f"Import abgeschlossen mit {len(errors)} Fehlern:\n" + "\n".join(errors)
+        return imported_count > 0, error_msg
+    else:
+        return True, f"Erfolgreich {imported_count} Personen importiert"
 
 if __name__ == "__main__":
     main() 
