@@ -1129,6 +1129,10 @@ def main():
     """, unsafe_allow_html=True)
     st.markdown("*Berücksichtigt Feiertage für Berlin*")
     
+    # Dezenter Link für Import/Export (nur im "Personen eingeben" Modus sichtbar)
+    if 'show_import_export' not in st.session_state:
+        st.session_state.show_import_export = False
+    
     # Sidebar für Team-Auswahl und Navigation
     st.sidebar.title("Team/Organisation")
     
@@ -1197,7 +1201,7 @@ def main():
     st.sidebar.title("Navigation")
     mode = st.sidebar.radio(
         "Wählen Sie eine Option:",
-        ["Personen eingeben", "Konfiguration Import/Export", "Urlaub eintragen", "Schichtplan generieren", "Manuelle Änderungen", "Plan anzeigen"]
+        ["Personen eingeben", "Urlaub eintragen", "Schichtplan generieren", "Manuelle Änderungen", "Plan anzeigen"]
     )
     
     # Stelle sicher, dass wir eine gültige Team-ID haben
@@ -1211,6 +1215,146 @@ def main():
         return
     
     if mode == "Personen eingeben":
+        # Dezenter Link für Import/Export
+        st.markdown("---")
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown("")  # Leer für Platz
+        with col2:
+            if st.button("📁 Daten importieren/exportieren", type="secondary", use_container_width=True):
+                st.session_state.show_import_export = not st.session_state.show_import_export
+        
+        # Import/Export-Bereich (expandable)
+        if st.session_state.show_import_export:
+            with st.expander("💾 Konfiguration Import/Export", expanded=True):
+                st.info("💡 Hier können Sie die aktuelle Konfiguration als Textdatei exportieren oder eine neue Konfiguration importieren.")
+                
+                # Tabs für Export und Import
+                tab_export, tab_import = st.tabs(["📤 Export", "📥 Import"])
+                
+                with tab_export:
+                    st.subheader("📤 Konfiguration exportieren")
+                    
+                    preferences = load_preferences(current_team_id)
+                    
+                    if not preferences:
+                        st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben.")
+                    else:
+                        st.write(f"**Team '{selected_team}'**: {len(preferences)} Mitarbeitende")
+                        
+                        # Zeige Vorschau der zu exportierenden Daten
+                        st.markdown("**Vorschau der Export-Daten:**")
+                        export_text = export_preferences_to_text(current_team_id)
+                        
+                        if export_text:
+                            st.code(export_text, language="text")
+                            
+                            st.markdown("**Format-Erklärung:**")
+                            st.markdown("- Jede Zeile = Ein Mitarbeiter")
+                            st.markdown("- Format: `Name,1,2,3,4,5`")
+                            st.markdown("- Die Zahlen 1-5 entsprechen den Prioritäten für Mo, Di, Mi, Do, Fr")
+                            st.markdown("- Beispiel: `Thomas,3,2,1,4,5` = Mittwoch ist 1. Priorität, Dienstag 2. Priorität, etc.")
+                            
+                            # Download Button
+                            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"schichtplaner_konfiguration_{selected_team}_{current_date}.txt"
+                            
+                            st.download_button(
+                                label="💾 Konfiguration als Textdatei herunterladen",
+                                data=export_text,
+                                file_name=filename,
+                                mime="text/plain",
+                                type="primary"
+                            )
+                            
+                            st.success("✅ Klicken Sie auf den Button oben, um die Datei herunterzuladen.")
+                        else:
+                            st.error("❌ Fehler beim Erstellen der Export-Daten.")
+                
+                with tab_import:
+                    st.subheader("📥 Konfiguration importieren")
+                    
+                    st.markdown("**Dateiformat:**")
+                    st.markdown("- Eine Zeile pro Mitarbeiter")
+                    st.markdown("- Format: `Name,1,2,3,4,5`")
+                    st.markdown("- Die Zahlen 1-5 sind die Prioritäten für Mo, Di, Mi, Do, Fr")
+                    st.markdown("- Jede Priorität 1-5 muss genau einmal verwendet werden")
+                    
+                    st.markdown("**Beispiel-Datei:**")
+                    example_text = """Thomas,3,2,1,4,5
+Anna,1,3,5,2,4
+Max,2,1,4,3,5"""
+                    st.code(example_text, language="text")
+                    
+                    # Datei-Upload
+                    uploaded_file = st.file_uploader(
+                        "Textdatei mit Konfiguration auswählen:",
+                        type=['txt'],
+                        help="Wählen Sie eine Textdatei mit der gewünschten Konfiguration aus"
+                    )
+                    
+                    # Import-Optionen
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        import_mode = st.radio(
+                            "Import-Modus:",
+                            ["➕ Zu bestehenden Personen hinzufügen", "🔄 Alle bestehenden Personen überschreiben"],
+                            help="Wählen Sie, ob bestehende Daten ergänzt oder ersetzt werden sollen"
+                        )
+                    
+                    with col2:
+                        if st.button("📋 Vorschau aus Upload erstellen", disabled=uploaded_file is None):
+                            if uploaded_file:
+                                try:
+                                    file_content = uploaded_file.read().decode("utf-8")
+                                    st.text_area("Datei-Inhalt:", file_content, height=200, disabled=True)
+                                except Exception as e:
+                                    st.error(f"❌ Fehler beim Lesen der Datei: {str(e)}")
+                    
+                    # Import durchführen
+                    if uploaded_file and st.button("🚀 Import starten", type="primary"):
+                        try:
+                            file_content = uploaded_file.read().decode("utf-8")
+                            overwrite = import_mode == "🔄 Alle bestehenden Personen überschreiben"
+                            
+                            success, message = import_preferences_from_text(file_content, current_team_id, overwrite)
+                            
+                            if success:
+                                st.success(f"✅ {message}")
+                                st.balloons()
+                                
+                                # Zeige importierte Daten
+                                updated_preferences = load_preferences(current_team_id)
+                                if updated_preferences:
+                                    st.subheader("Importierte Konfiguration:")
+                                    prefs_list = []
+                                    for name, days in updated_preferences.items():
+                                        if len(days) >= 5:
+                                            prefs_list.append({
+                                                "Name": name,
+                                                "🥇 1. Wahl": days[0],
+                                                "🥈 2. Wahl": days[1], 
+                                                "🥉 3. Wahl": days[2],
+                                                "🏅 4. Wahl": days[3],
+                                                "🏅 5. Wahl": days[4]
+                                            })
+                                    
+                                    if prefs_list:
+                                        prefs_df = pd.DataFrame(prefs_list)
+                                        st.dataframe(prefs_df, use_container_width=True, hide_index=True)
+                                
+                                # Schließe den Import/Export-Bereich nach erfolgreichem Import
+                                st.session_state.show_import_export = False
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {message}")
+                                
+                        except Exception as e:
+                            st.error(f"❌ Fehler beim Import: {str(e)}")
+        
+        st.markdown("---")
+        
         # Lade vorhandene Personen für das aktuelle Team
         existing_prefs = load_preferences(current_team_id)
         
@@ -1524,132 +1668,6 @@ def main():
                         else:
                             st.session_state.confirm_delete = True
                             st.warning(f"⚠️ Klicken Sie erneut, um **{delete_name}** endgültig zu löschen!")
-    
-    elif mode == "Konfiguration Import/Export":
-        st.header("💾 Konfiguration Import/Export")
-        
-        st.info("💡 Hier können Sie die aktuelle Konfiguration als Textdatei exportieren oder eine neue Konfiguration importieren.")
-        
-        # Tabs für Export und Import
-        tab_export, tab_import = st.tabs(["📤 Export", "📥 Import"])
-        
-        with tab_export:
-            st.subheader("📤 Konfiguration exportieren")
-            
-            preferences = load_preferences(current_team_id)
-            
-            if not preferences:
-                st.warning(f"Noch keine Personen im Team '{selected_team}' eingegeben. Bitte gehen Sie zuerst zu 'Personen eingeben'.")
-            else:
-                st.write(f"**Team '{selected_team}'**: {len(preferences)} Mitarbeitende")
-                
-                # Zeige Vorschau der zu exportierenden Daten
-                st.subheader("Vorschau der Export-Daten:")
-                export_text = export_preferences_to_text(current_team_id)
-                
-                if export_text:
-                    st.code(export_text, language="text")
-                    
-                    st.markdown("**Format-Erklärung:**")
-                    st.markdown("- Jede Zeile = Ein Mitarbeiter")
-                    st.markdown("- Format: `Name,1,2,3,4,5`")
-                    st.markdown("- Die Zahlen 1-5 entsprechen den Prioritäten für Mo, Di, Mi, Do, Fr")
-                    st.markdown("- Beispiel: `Thomas,3,2,1,4,5` = Mittwoch ist 1. Priorität, Dienstag 2. Priorität, etc.")
-                    
-                    # Download Button
-                    current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"schichtplaner_konfiguration_{selected_team}_{current_date}.txt"
-                    
-                    st.download_button(
-                        label="💾 Konfiguration als Textdatei herunterladen",
-                        data=export_text,
-                        file_name=filename,
-                        mime="text/plain",
-                        type="primary"
-                    )
-                    
-                    st.success("✅ Klicken Sie auf den Button oben, um die Datei herunterzuladen.")
-                else:
-                    st.error("❌ Fehler beim Erstellen der Export-Daten.")
-        
-        with tab_import:
-            st.subheader("📥 Konfiguration importieren")
-            
-            st.markdown("**Dateiformat:**")
-            st.markdown("- Eine Zeile pro Mitarbeiter")
-            st.markdown("- Format: `Name,1,2,3,4,5`")
-            st.markdown("- Die Zahlen 1-5 sind die Prioritäten für Mo, Di, Mi, Do, Fr")
-            st.markdown("- Jede Priorität 1-5 muss genau einmal verwendet werden")
-            
-            st.markdown("**Beispiel-Datei:**")
-            example_text = """Thomas,3,2,1,4,5
-Anna,1,3,5,2,4
-Max,2,1,4,3,5"""
-            st.code(example_text, language="text")
-            
-            # Datei-Upload
-            uploaded_file = st.file_uploader(
-                "Textdatei mit Konfiguration auswählen:",
-                type=['txt'],
-                help="Wählen Sie eine Textdatei mit der gewünschten Konfiguration aus"
-            )
-            
-            # Import-Optionen
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                import_mode = st.radio(
-                    "Import-Modus:",
-                    ["➕ Zu bestehenden Personen hinzufügen", "🔄 Alle bestehenden Personen überschreiben"],
-                    help="Wählen Sie, ob bestehende Daten ergänzt oder ersetzt werden sollen"
-                )
-            
-            with col2:
-                if st.button("📋 Vorschau aus Upload erstellen", disabled=uploaded_file is None):
-                    if uploaded_file:
-                        try:
-                            file_content = uploaded_file.read().decode("utf-8")
-                            st.text_area("Datei-Inhalt:", file_content, height=200, disabled=True)
-                        except Exception as e:
-                            st.error(f"❌ Fehler beim Lesen der Datei: {str(e)}")
-            
-            # Import durchführen
-            if uploaded_file and st.button("🚀 Import starten", type="primary"):
-                try:
-                    file_content = uploaded_file.read().decode("utf-8")
-                    overwrite = import_mode == "🔄 Alle bestehenden Personen überschreiben"
-                    
-                    success, message = import_preferences_from_text(file_content, current_team_id, overwrite)
-                    
-                    if success:
-                        st.success(f"✅ {message}")
-                        st.balloons()
-                        
-                        # Zeige importierte Daten
-                        updated_preferences = load_preferences(current_team_id)
-                        if updated_preferences:
-                            st.subheader("Importierte Konfiguration:")
-                            prefs_list = []
-                            for name, days in updated_preferences.items():
-                                if len(days) >= 5:
-                                    prefs_list.append({
-                                        "Name": name,
-                                        "🥇 1. Wahl": days[0],
-                                        "🥈 2. Wahl": days[1], 
-                                        "🥉 3. Wahl": days[2],
-                                        "🏅 4. Wahl": days[3],
-                                        "🏅 5. Wahl": days[4]
-                                    })
-                            
-                            if prefs_list:
-                                prefs_df = pd.DataFrame(prefs_list)
-                                st.dataframe(prefs_df, use_container_width=True, hide_index=True)
-                        
-                    else:
-                        st.error(f"❌ {message}")
-                        
-                except Exception as e:
-                    st.error(f"❌ Fehler beim Import: {str(e)}")
     
     elif mode == "Urlaub eintragen":
         st.header("🏖️ Urlaub und Nichtverfügbarkeit eintragen")
